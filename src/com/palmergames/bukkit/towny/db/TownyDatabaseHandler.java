@@ -45,6 +45,7 @@ import com.palmergames.bukkit.towny.regen.TownyRegenAPI;
 import com.palmergames.bukkit.towny.tasks.DeleteFileTask;
 import com.palmergames.bukkit.towny.utils.JailUtil;
 import com.palmergames.bukkit.towny.utils.MapUtil;
+import com.palmergames.bukkit.towny.utils.SpawnUtil;
 import com.palmergames.bukkit.towny.utils.TownRuinUtil;
 import com.palmergames.bukkit.util.BukkitTools;
 import com.palmergames.bukkit.util.NameValidation;
@@ -366,6 +367,10 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			town.setRuined(Boolean.parseBoolean(keys.getOrDefault("ruined", "false")));
 			town.setRuinedTime(Long.parseLong(keys.getOrDefault("ruinedTime", "0")));
 			town.setNeutral(Boolean.parseBoolean(keys.getOrDefault("neutral", "false")));
+			town.setOpen(Boolean.parseBoolean(keys.getOrDefault("open", "false")));
+			town.setPublic(Boolean.parseBoolean(keys.getOrDefault("public", "false")));
+			town.setConquered(Boolean.parseBoolean(keys.getOrDefault("conquered", "false")));
+			town.setConqueredDays(Integer.parseInt(keys.getOrDefault("conqueredDays", "0")));
 			town.setDebtBalance(Double.parseDouble(keys.getOrDefault("debtBalance", "0.0")));
 			town.setNationZoneOverride(Integer.parseInt(keys.getOrDefault("nationZoneOverride", "0")));
 			town.setNationZoneEnabled(Boolean.parseBoolean(keys.getOrDefault("nationZoneEnabled", "false")));
@@ -376,86 +381,21 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			town.setHasUpkeep(Boolean.parseBoolean(keys.getOrDefault("hasUpkeep", "true")));
 			town.setHasUnlimitedClaims(Boolean.parseBoolean(keys.getOrDefault("hasUnlimitedClaims", "false")));
 			town.setTaxes(Double.parseDouble(keys.getOrDefault("taxes", "0")));
+			town.setTaxPercentage(Boolean.parseBoolean(keys.getOrDefault("taxpercent", "false")));
 			town.setPlotPrice(Double.parseDouble(keys.getOrDefault("plotPrice", "0.0")));
 			town.setPlotTax(Double.parseDouble(keys.getOrDefault("plotTax", "0")));
 			town.setCommercialPlotTax(Double.parseDouble(keys.getOrDefault("commercialPlotTax", "0")));
 			town.setCommercialPlotPrice(Double.parseDouble(keys.getOrDefault("commercialPlotPrice", "0")));
 			town.setEmbassyPlotTax(Double.parseDouble(keys.getOrDefault("embassyPlotTax", "0")));
 			town.setEmbassyPlotPrice(Double.parseDouble(keys.getOrDefault("embassyPlotPrice", "0")));
-
-			line = keys.get("protectionStatus");
-			if (line != null)
-				town.setPermissions(line);
-
-			line = keys.get("taxpercent");
-			if (line != null)
-				try {
-					town.setTaxPercentage(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			
-			line = keys.get("maxPercentTaxAmount");
-			if (line != null)
-				town.setMaxPercentTaxAmount(Double.parseDouble(line));
-			else 
-				town.setMaxPercentTaxAmount(TownySettings.getMaxTownTaxPercentAmount());
-
-			line = keys.get("spawnCost");
-			if (line != null)
-				try {
-					town.setSpawnCost(Double.parseDouble(line));
-				} catch (Exception e) {
-					town.setSpawnCost(TownySettings.getSpawnTravelCost());
-				}
-			
-			line = keys.get("adminDisabledPvP");
-			if (line != null)
-				try {
-					town.setAdminDisabledPVP(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			
-			line = keys.get("adminEnabledPvP");
-			if (line != null)
-				try {
-					town.setAdminEnabledPVP(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			
-			line = keys.get("open");
-			if (line != null)
-				try {
-					town.setOpen(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			line = keys.get("public");
-			if (line != null)
-				try {
-					town.setPublic(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			line = keys.get("conquered");
-			if (line != null)
-				try {
-					town.setConquered(Boolean.parseBoolean(line));
-				} catch (Exception ignored) {
-				}
-			line = keys.get("conqueredDays");
-			if (line != null)
-				town.setConqueredDays(Integer.parseInt(line));
-			
-			line = keys.get("joinedNationAt");
-			if (line != null)
-				try {
-					town.setJoinedNationAt(Long.parseLong(line));
-				} catch (Exception ignored) {}
-
-			line = keys.get("movedHomeBlockAt");
-			if (line != null)
-				try {
-					town.setMovedHomeBlockAt(Long.parseLong(line));
-				} catch (Exception ignored) {}
-			
+			town.setMaxPercentTaxAmount(Double.parseDouble(keys.getOrDefault("maxPercentTaxAmount", String.valueOf(TownySettings.getMaxTownTaxPercentAmount()))));
+			town.setSpawnCost(Double.parseDouble(keys.getOrDefault("spawnCost", String.valueOf(TownySettings.getSpawnTravelCost()))));
+			town.setMapColorHexCode(keys.getOrDefault("mapColorHexCode", MapUtil.generateRandomTownColourAsHexCode()));
+			town.setAdminDisabledPVP(Boolean.parseBoolean(keys.getOrDefault("adminDisabledPvP", "false")));
+			town.setAdminEnabledPVP(Boolean.parseBoolean(keys.getOrDefault("adminEnabledPvP", "false")));
+			town.setPermissions(keys.getOrDefault("protectionStatus", ""));
+			town.setJoinedNationAt(Long.parseLong(keys.getOrDefault("joinedNationAt", "0")));
+			town.setMovedHomeBlockAt(Long.parseLong(keys.getOrDefault("movedHomeBlockAt", "0")));
 			line = keys.get("homeBlock");
 			if (line != null) {
 				tokens = line.split(",");
@@ -482,22 +422,9 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			
 			line = keys.get("spawn");
 			if (line != null) {
-				tokens = line.split(",");
-				if (tokens.length >= 4)
-					try {
-						World world = plugin.getServerWorld(tokens[0]);
-						double x = Double.parseDouble(tokens[1]);
-						double y = Double.parseDouble(tokens[2]);
-						double z = Double.parseDouble(tokens[3]);
-						
-						Location loc = new Location(world, x, y, z);
-						if (tokens.length == 6) {
-							loc.setPitch(Float.parseFloat(tokens[4]));
-							loc.setYaw(Float.parseFloat(tokens[5]));
-						}
-						town.setSpawn(loc);
-					} catch (NumberFormatException | NullPointerException | NotRegisteredException ignored) {
-					}
+				Location loc = SpawnUtil.parseSpawnLocationFromDB(line);
+				if (loc != null)
+					town.setSpawn(loc);
 			}
 			
 			// Load outpost spawns
@@ -505,54 +432,9 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			if (line != null) {
 				String[] outposts = line.split(";");
 				for (String spawn : outposts) {
-					tokens = spawn.split(",");
-					if (tokens.length >= 4)
-						try {
-							World world = plugin.getServerWorld(tokens[0]);
-							double x = Double.parseDouble(tokens[1]);
-							double y = Double.parseDouble(tokens[2]);
-							double z = Double.parseDouble(tokens[3]);
-							
-							Location loc = new Location(world, x, y, z);
-							if (tokens.length == 6) {
-								loc.setPitch(Float.parseFloat(tokens[4]));
-								loc.setYaw(Float.parseFloat(tokens[5]));
-							}
-							town.forceAddOutpostSpawn(loc);
-						} catch (NumberFormatException | NullPointerException | NotRegisteredException ignored) {
-						}
-				}
-			}
-			
-			// Load legacy jail spawns into new Jail objects.
-			line = keys.get("jailspawns");
-			if (line != null) {
-				String[] jails = line.split(";");
-				for (String spawn : jails) {
-					tokens = spawn.split(",");
-					if (tokens.length >= 4)
-						try {
-							World world = plugin.getServerWorld(tokens[0]);
-							double x = Double.parseDouble(tokens[1]);
-							double y = Double.parseDouble(tokens[2]);
-							double z = Double.parseDouble(tokens[3]);
-							
-							Location loc = new Location(world, x, y, z);
-							if (tokens.length == 6) {
-								loc.setPitch(Float.parseFloat(tokens[4]));
-								loc.setYaw(Float.parseFloat(tokens[5]));
-							}
-
-							TownBlock tb = universe.getTownBlock(WorldCoord.parseWorldCoord(loc));
-							if (tb == null)
-								continue;
-							Jail jail = new Jail(UUID.randomUUID(), town, tb, new ArrayList<>(Collections.singleton(loc)));
-							universe.registerJail(jail);
-							town.addJail(jail);
-							tb.setJail(jail);
-							jail.save();
-						} catch (NumberFormatException | NullPointerException | NotRegisteredException ignored) {
-						}
+					Location loc = SpawnUtil.parseSpawnLocationFromDB(spawn);
+					if (loc != null)
+						town.forceAddOutpostSpawn(loc);
 				}
 			}
 
@@ -575,62 +457,30 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 
 			line = keys.get("primaryJail");
 			if (line != null) {
-				UUID jailUUID= UUID.fromString(line);
+				UUID jailUUID = UUID.fromString(line);
 				if (universe.hasJail(jailUUID))
 					town.setPrimaryJail(universe.getJail(jailUUID));
 			}
 			
 			line = keys.get("trustedResidents");
-			if (line != null && !line.isEmpty()) {
-				for (Resident resident : TownyAPI.getInstance().getResidents(toUUIDArray(line.split(","))))
-					town.addTrustedResident(resident);
-			}
-			
-			line = keys.get("mapColorHexCode");
-			if (line != null) {
-				try {
-					town.setMapColorHexCode(line);
-				} catch (Exception e) {
-					town.setMapColorHexCode(MapUtil.generateRandomTownColourAsHexCode());
-				}
-			} else {
-				town.setMapColorHexCode(MapUtil.generateRandomTownColourAsHexCode());
-			}
+			if (line != null && !line.isEmpty())
+				TownyAPI.getInstance().getResidents(toUUIDArray(line.split(","))).stream().forEach(res -> town.addTrustedResident(res));
 
 			line = keys.get("allies");
-			if (line != null && !line.isEmpty()) {
-				List<UUID> uuids = Arrays.stream(line.split(","))
-						.map(allyUUID-> UUID.fromString(allyUUID))
-						.collect(Collectors.toList());
-				town.loadAllies(TownyAPI.getInstance().getTowns(uuids));
-			}
+			if (line != null && !line.isEmpty())
+				town.loadAllies(TownyAPI.getInstance().getTowns(toUUIDArray(line.split(","))));
 			
 			line = keys.get("enemies");
-			if (line != null && !line.isEmpty()) {
-				List<UUID> uuids = Arrays.stream(line.split(","))
-					.map(enemyUUID -> UUID.fromString(enemyUUID))
-					.collect(Collectors.toList());
-				town.loadEnemies(TownyAPI.getInstance().getTowns(uuids));
-			}
+			if (line != null && !line.isEmpty())
+				town.loadEnemies(TownyAPI.getInstance().getTowns(toUUIDArray(line.split(","))));
 			
 			line = keys.get("outlaws");
-			if (line != null && !line.isEmpty()) {
-				tokens = line.split(",");
-				for (String token : tokens) {
-					if (!token.isEmpty()) {
-						TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_town_fetch_outlaw", token));
-						Resident outlaw = universe.getResident(token);
-						if (outlaw != null && !town.hasOutlaw(outlaw)) {
-							try { 
-								town.addOutlaw(outlaw);
-							} catch (AlreadyRegisteredException ignored) {}
-						} else {
-							TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_reading_outlaw_of_town_not_exist", town.getName(), token));
-						}
-					}
-				}
-			}
-			
+			if (line != null && !line.isEmpty())
+				TownyAPI.getInstance().getResidents(toUUIDArray(line.split(","))).stream().forEach(res -> {
+					try {
+						town.addOutlaw(res);
+					} catch (AlreadyRegisteredException ignored) {}
+				});
 			
 		} catch (Exception e) {
 			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_reading_town_file_at_line", town.getName(), line, town.getName()));
@@ -647,6 +497,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 	 */
 
 	private String generateMissingName() {
+		// TODO: Make this a thing.
 		return "bob";
 	}
 

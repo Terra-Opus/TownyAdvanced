@@ -310,6 +310,17 @@ public class TownyAPI {
 		}
 		return matches;
 	}
+	
+	public List<Town> getTowns(UUID[] uuids) {
+		List<Town> matches = new ArrayList<>();
+		for (UUID uuid : uuids) {
+			Town t = townyUniverse.getTown(uuid);
+			if (t != null) {
+				matches.add(t);
+			}
+		}
+		return matches;
+	}
     
     /**
      * Find the the matching {@link Player} of the specified {@link Resident}.

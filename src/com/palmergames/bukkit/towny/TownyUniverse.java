@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -856,7 +857,7 @@ public class TownyUniverse {
 	}
 
 	public List<UUID> getPlotGroupUUIDs() {
-		return plotGroupUUIDMap.keySet().stream().toList();
+		return plotGroupUUIDMap.keySet().stream().collect(Collectors.toList());
 	}
 
 	/**
@@ -1007,7 +1008,7 @@ public class TownyUniverse {
 	}
 	
 	public List<UUID> getJailUUIDs() {
-		return jailUUIDMap.keySet().stream().toList();
+		return jailUUIDMap.keySet().stream().collect(Collectors.toList());
 	}
 	
     public Map<UUID, Jail> getJailUUIDMap() {
