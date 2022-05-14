@@ -93,19 +93,11 @@ public abstract class TownyDataSource {
 
 	abstract public boolean loadJailList();
 	
-	abstract public boolean loadResident(Resident resident);
-
-	abstract public boolean loadTown(Town town);
-
-	abstract public boolean loadNation(Nation nation);
-
-	abstract public boolean loadWorld(TownyWorld world);
+	abstract public boolean loadResidentData(UUID uuid);
 	
-	abstract public boolean loadJail(Jail jail);
+	abstract public boolean loadTownData(UUID uuid);
 
 	abstract public boolean loadPlotGroupList();
-
-	abstract public boolean loadPlotGroup(PlotGroup group);
 
 	abstract public boolean saveWorldList();
 
@@ -137,6 +129,10 @@ public abstract class TownyDataSource {
 	
 	abstract public boolean hasPlotData(TownBlock townBlock);
 
+	abstract public void deleteObject(String type, UUID uuid);
+	
+	abstract public void deleteObject(String type, String name);
+	
 	abstract public void deletePlotData(PlotBlockData plotChunk);
 
 	abstract public void deleteResident(Resident resident);

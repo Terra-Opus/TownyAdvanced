@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Towny's class for internal API Methods
@@ -436,6 +437,10 @@ public class TownyUniverse {
 		return Collections.unmodifiableCollection(residentNameMap.values());
 	}
 
+	public List<UUID> getResidentUUIDs() {
+		return residentUUIDMap.keySet().stream().collect(Collectors.toList());
+	}
+
 	/**
 	 * @return number of residents that Towny has.
 	 */
@@ -504,6 +509,10 @@ public class TownyUniverse {
     	return Collections.unmodifiableCollection(townNameMap.values());
 	}
 
+	public List<UUID> getTownUUIDs() {
+		return townUUIDMap.keySet().stream().collect(Collectors.toList());
+	}
+	
     public Trie getTownsTrie() {
     	return townsTrie;
 	}
@@ -669,6 +678,10 @@ public class TownyUniverse {
 		return Collections.unmodifiableCollection(nationNameMap.values());
 	}
 	
+	public List<UUID> getNationUUIDs() {
+		return nationUUIDMap.keySet().stream().collect(Collectors.toList());
+	}
+	
 	public int getNumNations() {
 		return nationNameMap.size();
 	}
@@ -809,8 +822,8 @@ public class TownyUniverse {
      * Used in loading only.
      * @param uuid UUID to assign to the PlotGroup.
      */
-    public void newPlotGroupInternal(String uuid) {
-    	PlotGroup group = new PlotGroup(UUID.fromString(uuid), null, null);
+    public void newPlotGroupInternal(UUID uuid) {
+    	PlotGroup group = new PlotGroup(uuid, null, null);
     	registerGroup(group);
     }
     
@@ -823,6 +836,14 @@ public class TownyUniverse {
 		group.getTown().removePlotGroup(group);
 		plotGroupUUIDMap.remove(group.getID());
 	}
+	
+	public void unregisterGroup(UUID uuid) {
+		PlotGroup group = plotGroupUUIDMap.get(uuid);
+		if (group == null)
+			return;
+		group.getTown().removePlotGroup(group);
+		plotGroupUUIDMap.remove(uuid);
+	}
 
 	/**
 	 * Get all the plot object groups from all towns
@@ -832,6 +853,10 @@ public class TownyUniverse {
 	 */
 	public Collection<PlotGroup> getGroups() {
     	return new ArrayList<>(plotGroupUUIDMap.values());
+	}
+
+	public List<UUID> getPlotGroupUUIDs() {
+		return plotGroupUUIDMap.keySet().stream().toList();
 	}
 
 	/**
@@ -981,6 +1006,10 @@ public class TownyUniverse {
 		return new ArrayList<>(getJailUUIDMap().values());
 	}
 	
+	public List<UUID> getJailUUIDs() {
+		return jailUUIDMap.keySet().stream().toList();
+	}
+	
     public Map<UUID, Jail> getJailUUIDMap() {
     	return jailUUIDMap;
     }
@@ -1000,9 +1029,18 @@ public class TownyUniverse {
     public void registerJail(Jail jail) {
     	jailUUIDMap.put(jail.getUUID(), jail);
     }
-    
+
+    /**
+     * @deprecated since 0.98.1.13 use {@link #unregisterJail(UUID)} instead.
+     * @param jail Jail to remove.
+     */
+    @Deprecated
     public void unregisterJail(Jail jail) {
     	jailUUIDMap.remove(jail.getUUID());
+    }
+    
+    public void unregisterJail(UUID uuid) {
+    	jailUUIDMap.remove(uuid);
     }
     
     /**
@@ -1010,9 +1048,9 @@ public class TownyUniverse {
      * 
      * @param uuid UUID of the given jail, taken from the Jail filename.
      */
-    public void newJailInternal(String uuid) {
+    public void newJailInternal(UUID uuid) {
     	// Remaining fields are set later on in the loading process.
-    	Jail jail = new Jail(UUID.fromString(uuid), null, null, null);
+    	Jail jail = new Jail(uuid, null, null, null);
     	registerJail(jail);
     }
 
@@ -1020,6 +1058,7 @@ public class TownyUniverse {
 		return wildernessMapDataMap;
 	}
 	
+	@Deprecated
 	public Map<String,String> getReplacementNameMap() {
 		return replacementNamesMap;
 	}
