@@ -75,6 +75,10 @@ public abstract class TownyDataSource {
 
 	abstract public void finishTasks();
 
+	/*
+	 * Load Lists (Gathering UUIDs to load in full later.)
+	 */
+	
 	abstract public boolean loadTownBlockList();
 
 	abstract public boolean loadResidentList();
@@ -89,22 +93,54 @@ public abstract class TownyDataSource {
 
 	abstract public boolean loadSnapshotList();
 
+	abstract public boolean loadJailList();
+	
+	/*
+	 * Load all objects of the given type, using the UUIDs gathered into TownyUniverse. 
+	 */
+	
+	abstract public boolean loadJails();
+	
+	abstract public boolean loadPlotGroups();
+	
+	abstract public boolean loadResidents();
+	
+	abstract public boolean loadTowns();
+	
+	abstract public boolean loadNations();
+	
+	abstract public boolean loadWorlds();
+	
 	abstract public boolean loadTownBlocks();
 
-	abstract public boolean loadJailList();
+	/*
+	 * Load object Data from the database into Memory, to be entered into the Objects themselves 
+	 */
+	
+	abstract public boolean loadJailData(UUID uuid);
 	
 	abstract public boolean loadResidentData(UUID uuid);
 	
 	abstract public boolean loadTownData(UUID uuid);
 
+	abstract public boolean loadNationData(UUID uuid);
+	
 	abstract public boolean loadPlotGroupList();
 
+	/*
+	 * Legacy database entries that still store a list of keys in a file. 
+	 */
+	
 	abstract public boolean saveWorldList();
 
 	abstract public boolean saveRegenList();
 
 	abstract public boolean saveSnapshotList();
 
+	/*
+	 * Individual objects saving methods.
+	 */
+	
 	abstract public boolean saveResident(Resident resident);
 
 	abstract public boolean saveHibernatedResident(UUID uuid, long registered);
@@ -122,117 +158,6 @@ public abstract class TownyDataSource {
 	abstract public boolean saveTownBlock(TownBlock townBlock);
 
 	abstract public boolean savePlotData(PlotBlockData plotChunk);
-
-	abstract public PlotBlockData loadPlotData(String worldName, int x, int z);
-
-	abstract public PlotBlockData loadPlotData(TownBlock townBlock);
-	
-	abstract public boolean hasPlotData(TownBlock townBlock);
-
-	abstract public void deleteObject(String type, UUID uuid);
-	
-	abstract public void deleteObject(String type, String name);
-	
-	abstract public void deletePlotData(PlotBlockData plotChunk);
-
-	abstract public void deleteResident(Resident resident);
-
-	abstract public void deleteHibernatedResident(UUID uuid);
-	
-	abstract public void deleteTown(Town town);
-
-	abstract public void deleteNation(Nation nation);
-
-	abstract public void deleteWorld(TownyWorld world);
-
-	abstract public void deleteTownBlock(TownBlock townBlock);
-
-	abstract public void deleteFile(String file);
-	
-	abstract public void deletePlotGroup(PlotGroup group);
-	
-	abstract public void deleteJail(Jail jail);
-	
-	abstract public CompletableFuture<Optional<Long>> getHibernatedResidentRegistered(UUID uuid);
-
-	public boolean cleanup() {
-
-		return true;
-
-	}
-
-	public boolean loadResidents() {
-
-		TownyMessaging.sendDebugMsg("Loading Residents");
-
-		TownySettings.setUUIDCount(0);
-		
-		for (Resident resident : universe.getResidents()) {
-			if (!loadResident(resident)) {
-				plugin.getLogger().severe("Loading Error: Could not read resident data '" + resident.getName() + "'.");
-				return false;
-			}
-
-			if (resident.hasUUID())
-				TownySettings.incrementUUIDCount();
-		}
-		return true;
-	}
-
-	public boolean loadTowns() {
-
-		TownyMessaging.sendDebugMsg("Loading Towns");
-		for (Town town : universe.getTowns())
-			if (!loadTown(town)) {
-				plugin.getLogger().severe("Loading Error: Could not read town data '" + town.getName() + "'.");
-				return false;
-			}
-		return true;
-	}
-
-	public boolean loadNations() {
-
-		TownyMessaging.sendDebugMsg("Loading Nations");
-		for (Nation nation : universe.getNations())
-			if (!loadNation(nation)) {
-				plugin.getLogger().severe("Loading Error: Could not read nation data '" + nation.getName() + "'.");
-				return false;
-			}
-		return true;
-	}
-
-	public boolean loadWorlds() {
-
-		TownyMessaging.sendDebugMsg("Loading Worlds");
-		for (TownyWorld world : universe.getTownyWorlds())
-			if (!loadWorld(world)) {
-				plugin.getLogger().severe("Loading Error: Could not read world data '" + world.getName() + "'.");
-				return false;
-			}
-		return true;
-	}
-	
-	public boolean loadJails() {
-		TownyMessaging.sendDebugMsg("Loading Jails");
-		for (Jail jail : universe.getJails()) {
-			if (!loadJail(jail)) {
-				plugin.getLogger().severe("Loading Error: Could not read jail data '" + jail.getUUID() + "'.");
-				return false;
-			}
-		}
-		return true;
-	}
-	
-	public boolean loadPlotGroups() {
-		TownyMessaging.sendDebugMsg("Loading PlotGroups");
-		for (PlotGroup group : universe.getGroups()) {
-			if (!loadPlotGroup(group)) {
-				plugin.getLogger().severe("Loading Error: Could not read PlotGroup data: '" + group.getID() + "'.");
-				return false;
-			}
-		}
-		return true;
-	}
 
 	/*
 	 * Save all of category
@@ -298,8 +223,61 @@ public abstract class TownyDataSource {
 		}
 		return true;
 	}
+	
+	/*
+	 * PlotBlockData methods.
+	 */
+	
+	abstract public PlotBlockData loadPlotData(String worldName, int x, int z);
 
-	// Database functions
+	abstract public PlotBlockData loadPlotData(TownBlock townBlock);
+	
+	abstract public boolean hasPlotData(TownBlock townBlock);
+
+	/*
+	 * Delete methods.
+	 */
+	
+	abstract public void deleteObject(String type, UUID uuid);
+	
+	abstract public void deleteObject(String type, String name);
+	
+	abstract public void deletePlotData(PlotBlockData plotChunk);
+
+	abstract public void deleteResident(Resident resident);
+
+	abstract public void deleteHibernatedResident(UUID uuid);
+	
+	abstract public void deleteTown(Town town);
+
+	abstract public void deleteNation(Nation nation);
+
+	abstract public void deleteWorld(TownyWorld world);
+
+	abstract public void deleteTownBlock(TownBlock townBlock);
+
+	abstract public void deleteFile(String file);
+	
+	abstract public void deletePlotGroup(PlotGroup group);
+	
+	abstract public void deleteJail(Jail jail);
+	
+	/*
+	 * Misc
+	 */
+	
+	abstract public CompletableFuture<Optional<Long>> getHibernatedResidentRegistered(UUID uuid);
+
+	public boolean cleanup() {
+
+		return true;
+
+	}
+
+	/*
+	 * Deprecated Methods follow:
+	 */
+
 	/**
 	 * @deprecated as of 0.97.5.3, Use {@link TownyUniverse#getResidents()} instead.
 	 * 

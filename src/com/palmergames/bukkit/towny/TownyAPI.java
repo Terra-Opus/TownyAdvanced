@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Towny's class for external API Methods
@@ -187,6 +188,10 @@ public class TownyAPI {
 		return matches;
 	}
     
+	public List<Nation> getNations(UUID[] uuids) {
+		return getNation(Stream.of(uuids).collect(Collectors.toList()));
+	}
+	
     /**
      * Gets the resident from the given name.
      * @param name String name of the resident.
@@ -312,14 +317,7 @@ public class TownyAPI {
 	}
 	
 	public List<Town> getTowns(UUID[] uuids) {
-		List<Town> matches = new ArrayList<>();
-		for (UUID uuid : uuids) {
-			Town t = townyUniverse.getTown(uuid);
-			if (t != null) {
-				matches.add(t);
-			}
-		}
-		return matches;
+		return getTowns(Stream.of(uuids).collect(Collectors.toList()));
 	}
     
     /**

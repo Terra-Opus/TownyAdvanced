@@ -538,11 +538,11 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 
 	private boolean loadResultSet(TownyDBTableType type, UUID uuid) {
 		return switch (type) {
-		case JAIL -> throw new UnsupportedOperationException("Unimplemented case: " + type);
-		case NATION -> throw new UnsupportedOperationException("Unimplemented case: " + type);
+		case JAIL -> loadJailData(uuid);
+		case NATION -> loadNationData(uuid);
 		case PLOTGROUP -> throw new UnsupportedOperationException("Unimplemented case: " + type);
 		case RESIDENT -> loadResidentData(uuid);
-		case TOWN -> throw new UnsupportedOperationException("Unimplemented case: " + type);
+		case TOWN -> loadTownData(uuid);
 		case TOWNBLOCK -> throw new UnsupportedOperationException("Unimplemented case: " + type);
 		case WORLD -> throw new UnsupportedOperationException("Unimplemented case: " + type);
 		default -> throw new IllegalArgumentException("Unexpected value: " + type);
@@ -668,6 +668,25 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	 * Load individual towny object
 	 */
 	@Override
+	public boolean loadJailData(UUID uuid) {
+		if (!getContext())
+			return false;
+		Jail jail = universe.getJail(uuid);
+		if (jail == null) {
+			TownyMessaging.sendErrorMsg("Cannot find a jail with the UUID " + uuid.toString() + " in the TownyUniverse.");
+			return false; 
+		}
+	
+		try (Statement s = cntx.createStatement();
+			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "JAILS WHERE uuid='" + uuid + "'")) {
+			return loadJail(jail, loadResultSetIntoHashMap(rs));
+		} catch (SQLException e) {
+			TownyMessaging.sendErrorMsg("SQL: Load jail sql Error - " + e.getMessage());
+			return false;
+		}
+	}
+	
+	@Override
 	public boolean loadResidentData(UUID uuid) {
 		if (!getContext())
 			return false;
@@ -682,6 +701,44 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 			return loadResident(resident, uuid, loadResultSetIntoHashMap(rs));
 		} catch (SQLException e) {
 			TownyMessaging.sendErrorMsg("SQL: Load resident sql Error - " + e.getMessage());
+			return false;
+		}
+	}
+	
+	@Override
+	public boolean loadTownData(UUID uuid) {
+		if (!getContext())
+			return false;
+		Town town = universe.getTown(uuid);
+		if (town == null) {
+			TownyMessaging.sendErrorMsg("Cannot find a town with the UUID " + uuid.toString() + " in the TownyUniverse.");
+			return false; 
+		}
+	
+		try (Statement s = cntx.createStatement();
+			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "TOWNS WHERE uuid='" + uuid + "'")) {
+			return loadTown(town, uuid, loadResultSetIntoHashMap(rs));
+		} catch (SQLException e) {
+			TownyMessaging.sendErrorMsg("SQL: Load town sql Error - " + e.getMessage());
+			return false;
+		}
+	}
+	
+	@Override
+	public boolean loadNationData(UUID uuid) {
+		if (!getContext())
+			return false;
+		Nation nation = universe.getNation(uuid);
+		if (nation == null) {
+			TownyMessaging.sendErrorMsg("Cannot find a nation with the UUID " + uuid.toString() + " in the TownyUniverse.");
+			return false; 
+		}
+	
+		try (Statement s = cntx.createStatement();
+			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "NATIONS WHERE uuid='" + uuid + "'")) {
+			return loadNation(nation, loadResultSetIntoHashMap(rs));
+		} catch (SQLException e) {
+			TownyMessaging.sendErrorMsg("SQL: Load nation sql Error - " + e.getMessage());
 			return false;
 		}
 	}

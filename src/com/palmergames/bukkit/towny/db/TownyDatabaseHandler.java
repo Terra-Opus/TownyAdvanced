@@ -20,6 +20,7 @@ import com.palmergames.bukkit.towny.event.town.TownPreUnclaimEvent;
 import com.palmergames.bukkit.towny.event.town.TownUnclaimEvent;
 import com.palmergames.bukkit.towny.event.PreDeleteNationEvent;
 import com.palmergames.bukkit.towny.exceptions.AlreadyRegisteredException;
+import com.palmergames.bukkit.towny.exceptions.EmptyNationException;
 import com.palmergames.bukkit.towny.exceptions.InvalidNameException;
 import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.TownyException;
@@ -72,7 +73,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Queue;
@@ -251,17 +251,55 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 	 * with an object, UUID and the keys which are used to load an object.
 	 */
 	
+	public boolean loadJail(Jail jail, HashMap<String, String> keys) {
+		String line = "";
+		String[] tokens;
+		line = keys.get("townblock");
+		if (line != null) {
+			tokens = line.split(",");
+			TownBlock tb = null;
+			try {
+				tb = universe.getTownBlock(new WorldCoord(tokens[0], Integer.parseInt(tokens[1].trim()), Integer.parseInt(tokens[2].trim())));
+				jail.setTownBlock(tb);
+				jail.setTown(tb.getTown());
+				tb.setJail(jail);
+				tb.getTown().addJail(jail);
+			} catch (NumberFormatException | NotRegisteredException e) {
+				TownyMessaging.sendErrorMsg("Jail " + jail.getUUID() + " tried to load invalid townblock " + line + " deleting jail.");
+				removeJail(jail);
+				deleteJail(jail);
+				return true;
+			}
+		}
+		line = keys.get("spawns");
+		if (line != null) {
+			String[] jails = line.split(";");
+			for (String spawn : jails) {
+				Location loc = SpawnUtil.parseSpawnLocationFromDB(spawn);
+				if (loc != null)
+					jail.addJailCell(loc);
+			}
+			if (jail.getJailCellLocations().isEmpty()) {
+				TownyMessaging.sendErrorMsg("Jail " + jail.getUUID() + " loaded with zero spawns " + line + " deleting jail.");
+				removeJail(jail);
+				deleteJail(jail);
+				return true;
+			}
+		}
+		return true;
+	}
+	
 	public boolean loadResident(Resident resident, UUID uuid, HashMap<String, String> keys) {
 		try {
 			String line = "";
 			// Name
 			resident.setName(keys.getOrDefault("name", generateMissingName()));
 			// Registered Date
-			resident.setRegistered(Long.parseLong(keys.getOrDefault("registered", "0")));
+			resident.setRegistered(getLong(keys.getOrDefault("registered", "0")));
 			// Last Online Date
-			resident.setLastOnline(Long.parseLong(keys.getOrDefault("lastOnline", "0")));
+			resident.setLastOnline(getLong(keys.getOrDefault("lastOnline", "0")));
 			// isNPC
-			resident.setNPC(Boolean.parseBoolean(keys.getOrDefault("isNPC", "false")));
+			resident.setNPC(getBoolean(keys.getOrDefault("isNPC", "false")));
 			// jail
 			line = keys.get("jail");
 			if (line != null && universe.hasJail(UUID.fromString(line)))
@@ -269,25 +307,22 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			if (resident.isJailed()) {
 				line = keys.get("jailCell");
 				if (line != null)
-					resident.setJailCell(Integer.parseInt(line));
+					resident.setJailCell(getInt(line));
 				
 				line = keys.get("jailHours");
 				if (line != null)
-					resident.setJailHours(Integer.parseInt(line));
+					resident.setJailHours(getInt(line));
 			}
 			line = keys.get("friends");
 			if (line != null) {
-				List<Resident> friends = TownyAPI.getInstance().getResidents(line.split(","));
-				for (Resident friend : friends) {
+				TownyAPI.getInstance().getResidents(toUUIDArray(line.split(","))).stream().forEach(friend -> {
 					try {
 						resident.addFriend(friend);
-					} catch (AlreadyRegisteredException ignored) {}
-				}
+					} catch (AlreadyRegisteredException e) {}
+				});
 			}
-			
-			line = keys.get("protectionStatus");
-			if (line != null)
-				resident.setPermissions(line);
+
+			resident.setPermissions(keys.getOrDefault("protectionStatus", ""));
 	
 			line = keys.get("metadata");
 			if (line != null && !line.isEmpty())
@@ -329,7 +364,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 	
 					line = keys.get("joinedTownAt");
 					if (line != null) {
-						resident.setJoinedTownAt(Long.parseLong(line));
+						resident.setJoinedTownAt(getLong(line));
 					}
 				}
 			}
@@ -348,7 +383,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			line = keys.get("mayor");
 			if (line != null)
 				try {
-					Resident res = universe.getResident(line);
+					Resident res = universe.getResident(UUID.fromString(line));
 					if (res == null)
 						throw new TownyException();
 					
@@ -363,39 +398,39 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 				}
 
 			town.setName(keys.getOrDefault("name", generateMissingName()));
-			town.setRegistered(Long.parseLong(keys.getOrDefault("registered", "0")));
-			town.setRuined(Boolean.parseBoolean(keys.getOrDefault("ruined", "false")));
-			town.setRuinedTime(Long.parseLong(keys.getOrDefault("ruinedTime", "0")));
-			town.setNeutral(Boolean.parseBoolean(keys.getOrDefault("neutral", "false")));
-			town.setOpen(Boolean.parseBoolean(keys.getOrDefault("open", "false")));
-			town.setPublic(Boolean.parseBoolean(keys.getOrDefault("public", "false")));
-			town.setConquered(Boolean.parseBoolean(keys.getOrDefault("conquered", "false")));
-			town.setConqueredDays(Integer.parseInt(keys.getOrDefault("conqueredDays", "0")));
-			town.setDebtBalance(Double.parseDouble(keys.getOrDefault("debtBalance", "0.0")));
-			town.setNationZoneOverride(Integer.parseInt(keys.getOrDefault("nationZoneOverride", "0")));
-			town.setNationZoneEnabled(Boolean.parseBoolean(keys.getOrDefault("nationZoneEnabled", "false")));
+			town.setRegistered(getLong(keys.getOrDefault("registered", "0")));
+			town.setRuined(getBoolean(keys.getOrDefault("ruined", "false")));
+			town.setRuinedTime(getLong(keys.getOrDefault("ruinedTime", "0")));
+			town.setNeutral(getBoolean(keys.getOrDefault("neutral", "false")));
+			town.setOpen(getBoolean(keys.getOrDefault("open", "false")));
+			town.setPublic(getBoolean(keys.getOrDefault("public", "false")));
+			town.setConquered(getBoolean(keys.getOrDefault("conquered", "false")));
+			town.setConqueredDays(getInt(keys.getOrDefault("conqueredDays", "0")));
+			town.setDebtBalance(getDouble(keys.getOrDefault("debtBalance", "0.0")));
+			town.setNationZoneOverride(getInt(keys.getOrDefault("nationZoneOverride", "0")));
+			town.setNationZoneEnabled(getBoolean(keys.getOrDefault("nationZoneEnabled", "false")));
 			town.setBoard(keys.getOrDefault("townBoard", ""));
 			town.setTag(keys.getOrDefault("tag", ""));
-			town.setBonusBlocks(Integer.parseInt(keys.getOrDefault("bonusBlocks", "0")));
-			town.setPurchasedBlocks(Integer.parseInt(keys.getOrDefault("purchasedBlocks", "0")));
-			town.setHasUpkeep(Boolean.parseBoolean(keys.getOrDefault("hasUpkeep", "true")));
-			town.setHasUnlimitedClaims(Boolean.parseBoolean(keys.getOrDefault("hasUnlimitedClaims", "false")));
-			town.setTaxes(Double.parseDouble(keys.getOrDefault("taxes", "0")));
-			town.setTaxPercentage(Boolean.parseBoolean(keys.getOrDefault("taxpercent", "false")));
-			town.setPlotPrice(Double.parseDouble(keys.getOrDefault("plotPrice", "0.0")));
-			town.setPlotTax(Double.parseDouble(keys.getOrDefault("plotTax", "0")));
-			town.setCommercialPlotTax(Double.parseDouble(keys.getOrDefault("commercialPlotTax", "0")));
-			town.setCommercialPlotPrice(Double.parseDouble(keys.getOrDefault("commercialPlotPrice", "0")));
-			town.setEmbassyPlotTax(Double.parseDouble(keys.getOrDefault("embassyPlotTax", "0")));
-			town.setEmbassyPlotPrice(Double.parseDouble(keys.getOrDefault("embassyPlotPrice", "0")));
-			town.setMaxPercentTaxAmount(Double.parseDouble(keys.getOrDefault("maxPercentTaxAmount", String.valueOf(TownySettings.getMaxTownTaxPercentAmount()))));
-			town.setSpawnCost(Double.parseDouble(keys.getOrDefault("spawnCost", String.valueOf(TownySettings.getSpawnTravelCost()))));
+			town.setBonusBlocks(getInt(keys.getOrDefault("bonusBlocks", "0")));
+			town.setPurchasedBlocks(getInt(keys.getOrDefault("purchasedBlocks", "0")));
+			town.setHasUpkeep(getBoolean(keys.getOrDefault("hasUpkeep", "true")));
+			town.setHasUnlimitedClaims(getBoolean(keys.getOrDefault("hasUnlimitedClaims", "false")));
+			town.setTaxes(getDouble(keys.getOrDefault("taxes", "0")));
+			town.setTaxPercentage(getBoolean(keys.getOrDefault("taxpercent", "false")));
+			town.setPlotPrice(getDouble(keys.getOrDefault("plotPrice", "0.0")));
+			town.setPlotTax(getDouble(keys.getOrDefault("plotTax", "0")));
+			town.setCommercialPlotTax(getDouble(keys.getOrDefault("commercialPlotTax", "0")));
+			town.setCommercialPlotPrice(getDouble(keys.getOrDefault("commercialPlotPrice", "0")));
+			town.setEmbassyPlotTax(getDouble(keys.getOrDefault("embassyPlotTax", "0")));
+			town.setEmbassyPlotPrice(getDouble(keys.getOrDefault("embassyPlotPrice", "0")));
+			town.setMaxPercentTaxAmount(getDouble(keys.getOrDefault("maxPercentTaxAmount", String.valueOf(TownySettings.getMaxTownTaxPercentAmount()))));
+			town.setSpawnCost(getDouble(keys.getOrDefault("spawnCost", String.valueOf(TownySettings.getSpawnTravelCost()))));
 			town.setMapColorHexCode(keys.getOrDefault("mapColorHexCode", MapUtil.generateRandomTownColourAsHexCode()));
-			town.setAdminDisabledPVP(Boolean.parseBoolean(keys.getOrDefault("adminDisabledPvP", "false")));
-			town.setAdminEnabledPVP(Boolean.parseBoolean(keys.getOrDefault("adminEnabledPvP", "false")));
+			town.setAdminDisabledPVP(getBoolean(keys.getOrDefault("adminDisabledPvP", "false")));
+			town.setAdminEnabledPVP(getBoolean(keys.getOrDefault("adminEnabledPvP", "false")));
 			town.setPermissions(keys.getOrDefault("protectionStatus", ""));
-			town.setJoinedNationAt(Long.parseLong(keys.getOrDefault("joinedNationAt", "0")));
-			town.setMovedHomeBlockAt(Long.parseLong(keys.getOrDefault("movedHomeBlockAt", "0")));
+			town.setJoinedNationAt(getLong(keys.getOrDefault("joinedNationAt", "0")));
+			town.setMovedHomeBlockAt(getLong(keys.getOrDefault("movedHomeBlockAt", "0")));
 			line = keys.get("homeBlock");
 			if (line != null) {
 				tokens = line.split(",");
@@ -405,8 +440,8 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 						TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_homeblock_load_invalid_world", town.getName()));
 					else {
 						try {
-							int x = Integer.parseInt(tokens[1]);
-							int z = Integer.parseInt(tokens[2]);
+							int x = getInt(tokens[1]);
+							int z = getInt(tokens[2]);
 							TownBlock homeBlock = universe.getTownBlock(new WorldCoord(world.getName(), x, z));
 							town.forceSetHomeBlock(homeBlock);
 						} catch (NumberFormatException e) {
@@ -488,6 +523,89 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			return false;
 		} finally {
 			saveTown(town);
+		}
+		return true;
+	}
+	
+	public boolean loadNation(Nation nation, HashMap<String, String> keys) {
+		String line = "";
+		try {
+			line = keys.get("capital");
+			String cantLoadCapital = Translation.of("flatfile_err_nation_could_not_load_capital_disband", nation.getName());
+			if (line != null) {
+				Town town = universe.getTown(line);
+				if (town != null) {
+					try {
+						nation.forceSetCapital(town);
+					} catch (EmptyNationException e1) {
+						plugin.getLogger().warning(cantLoadCapital);
+						removeNation(nation);
+						return true;
+					}
+				}
+				else {
+					TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_cannot_set_capital_try_next", nation.getName(), line));
+					if (!nation.findNewCapital()) {
+						plugin.getLogger().warning(cantLoadCapital);
+						removeNation(nation);
+						return true;
+					}
+				}
+			} else {
+				TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_undefined_capital_select_new", nation.getName()));
+				if (!nation.findNewCapital()) {
+					plugin.getLogger().warning(cantLoadCapital);
+					removeNation(nation);
+					return true;
+				}
+			}
+
+			nation.setName(keys.getOrDefault("name", generateMissingName()));
+			nation.setTaxes(getDouble(keys.getOrDefault("taxes", "0.0")));
+			nation.setSpawnCost(getDouble(keys.getOrDefault("spawnCost", String.valueOf(TownySettings.getSpawnTravelCost()))));
+			nation.setNeutral(getBoolean(keys.getOrDefault("neutral", "false")));
+			nation.setRegistered(getLong(keys.getOrDefault("registered", "0")));
+			nation.setPublic(getBoolean(keys.getOrDefault("isPublic", "false")));
+			nation.setOpen(getBoolean(keys.getOrDefault("isOpen", "false")));
+			nation.setBoard(keys.getOrDefault("nationBoard", ""));
+			nation.setMapColorHexCode(keys.getOrDefault("mapColorHexCode", MapUtil.generateRandomNationColourAsHexCode()));
+			nation.setTag(keys.getOrDefault("tag", ""));
+
+			
+			line = keys.get("allies");
+			if (line != null)
+				TownyAPI.getInstance().getNations(toUUIDArray(line.split(","))).stream().forEach(ally -> {
+					try {
+						nation.addAlly(ally);
+					} catch (AlreadyRegisteredException ignored) {}
+				});
+			
+			line = keys.get("enemies");
+			if (line != null)
+				TownyAPI.getInstance().getNations(toUUIDArray(line.split(","))).stream().forEach(enemy -> {
+					try {
+						nation.addEnemy(enemy);
+					} catch (AlreadyRegisteredException ignored) {}
+				});
+
+			line = keys.get("nationSpawn");
+			if (line != null) {
+				Location loc = SpawnUtil.parseSpawnLocationFromDB(line);
+				if (loc != null)
+					nation.setSpawn(loc);
+			}
+
+			
+			line = keys.get("metadata");
+			if (line != null && !line.isEmpty())
+				MetadataLoader.getInstance().deserializeMetadata(nation, line.trim());
+
+		} catch (Exception e) {
+			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_reading_nation_file_at_line", nation.getName(), line, nation.getName()));
+			e.printStackTrace();
+			return false;
+		} finally {
+			saveNation(nation);
 		}
 		return true;
 	}
@@ -1337,7 +1455,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			while ((line = fin.readLine()) != null)
 				if (!line.equals("")) {
 					split = line.split(",");
-					WorldCoord wc = new WorldCoord(split[0], Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+					WorldCoord wc = new WorldCoord(split[0], getInt(split[1]), getInt(split[2]));
 					TownyRegenAPI.addToRegenQueueList(wc, false);
 				}
 			
@@ -1365,7 +1483,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			while ((line = fin.readLine()) != null)
 				if (!line.equals("")) {
 					split = line.split(",");
-					WorldCoord worldCoord = new WorldCoord(split[0], Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+					WorldCoord worldCoord = new WorldCoord(split[0], getInt(split[1]), getInt(split[2]));
 					TownyRegenAPI.addWorldCoord(worldCoord);
 				}
 			return true;
@@ -1576,6 +1694,22 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			if (i > 100000)
 				throw new TownyException("Too many replacement names.");
 		} while (true);
+	}
+	
+	private long getLong(String num) {
+		return Long.parseLong(num);
+	}
+	
+	private boolean getBoolean(String bool) {
+		return Boolean.parseBoolean(bool);
+	}
+	
+	private int getInt(String num) {
+		return Integer.parseInt(num);
+	}
+	
+	private double getDouble(String num) {
+		return Double.parseDouble(num);
 	}
 
 	/**
