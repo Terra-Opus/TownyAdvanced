@@ -7,8 +7,6 @@ import com.palmergames.bukkit.towny.TownyMessaging;
 import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
 import com.palmergames.bukkit.towny.exceptions.AlreadyRegisteredException;
-import com.palmergames.bukkit.towny.exceptions.EmptyNationException;
-import com.palmergames.bukkit.towny.exceptions.InvalidNameException;
 import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.TownyException;
 import com.palmergames.bukkit.towny.object.Nation;
@@ -20,35 +18,31 @@ import com.palmergames.bukkit.towny.object.TownBlock;
 import com.palmergames.bukkit.towny.object.TownBlockTypeHandler;
 import com.palmergames.bukkit.towny.object.TownyWorld;
 import com.palmergames.bukkit.towny.object.Translation;
-import com.palmergames.bukkit.towny.object.WorldCoord;
 import com.palmergames.bukkit.towny.object.metadata.MetadataLoader;
 import com.palmergames.bukkit.towny.object.jail.Jail;
 import com.palmergames.bukkit.towny.tasks.DeleteFileTask;
-import com.palmergames.bukkit.towny.utils.MapUtil;
-import com.palmergames.bukkit.util.BukkitTools;
 import com.palmergames.util.FileMgmt;
 import com.palmergames.util.StringMgmt;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public final class TownyFlatFileSource extends TownyDatabaseHandler {
 
@@ -167,11 +161,26 @@ public final class TownyFlatFileSource extends TownyDatabaseHandler {
 		case RESIDENT -> loadResidentData(uuid);
 		case TOWN -> loadTownData(uuid);
 		case TOWNBLOCK -> throw new UnsupportedOperationException("Unimplemented case: " + type);
-		case WORLD -> throw new UnsupportedOperationException("Unimplemented case: " + type);
+		case WORLD -> loadWorldData(uuid);
 		default -> throw new IllegalArgumentException("Unexpected value: " + type);
 		};
 	}
 
+	public String getNameOfObject(String type, UUID uuid) {
+		File file = new File(getFileOfTypeWithUUID(TownyDBFileType.valueOf(type.toUpperCase(Locale.ROOT)), uuid));
+		if (file.exists() && file.isFile()) {
+			try (FileInputStream fis = new FileInputStream(file);
+				 InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
+				Properties properties = new Properties();
+				properties.load(isr);
+				return properties.getProperty("name");
+			}catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+	
 	public String getTownBlockFilename(TownBlock townBlock) {
 
 		return dataFolderPath + File.separator + "townblocks" + File.separator + townBlock.getWorld().getName() + File.separator + townBlock.getX() + "_" + townBlock.getZ() + "_" + TownySettings.getTownBlockSize() + ".data";
@@ -492,7 +501,7 @@ public final class TownyFlatFileSource extends TownyDatabaseHandler {
 	public boolean loadJailData(UUID uuid) {
 		File jailFile = new File(getFileOfTypeWithUUID(TownyDBFileType.JAIL, uuid));
 		if (jailFile.exists() && jailFile.isFile()) {
-			Jail jail= TownyUniverse.getInstance().getJail(uuid);
+			Jail jail = TownyUniverse.getInstance().getJail(uuid);
 			if (jail == null) {
 				TownyMessaging.sendErrorMsg("Cannot find a jail with the UUID " + uuid.toString() + " in the TownyUniverse.");
 				return false; 
@@ -531,7 +540,7 @@ public final class TownyFlatFileSource extends TownyDatabaseHandler {
 			}
 			HashMap<String, String> keys = FileMgmt.loadFileIntoHashMap(residentFile);
 			
-			return loadResident(resident, uuid, keys); 
+			return loadResident(resident, keys); 
 		}
 		return true;
 	}
@@ -547,7 +556,7 @@ public final class TownyFlatFileSource extends TownyDatabaseHandler {
 			}
 			HashMap<String, String> keys = FileMgmt.loadFileIntoHashMap(townFile);
 			
-			return loadTown(town, uuid, keys); 
+			return loadTown(town, keys); 
 		}
 		return true;
 	}
@@ -583,308 +592,7 @@ public final class TownyFlatFileSource extends TownyDatabaseHandler {
 		}
 		return true;
 	}
-	@Override
-	public boolean loadWorld(TownyWorld world) {
-		
-		String line = "";
-		String path = getWorldFilename(world);
-		
-		// create the world file if it doesn't exist
-		if (!FileMgmt.checkOrCreateFile(path)) {
-			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_exception_reading_file", path));
-		}
-		
-		File fileWorld = new File(path);
-		if (fileWorld.exists() && fileWorld.isFile()) {
-			TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_loading_world", world.getName()));
-			try {
-				HashMap<String, String> keys = FileMgmt.loadFileIntoHashMap(fileWorld);
-				
-				line = keys.get("claimable");
-				if (line != null)
-					try {
-						world.setClaimable(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("pvp");
-				if (line != null)
-					try {
-						world.setPVP(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("forcepvp");
-				if (line != null)
-					try {
-						world.setForcePVP(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("friendlyFire");
-				if (line != null)
-					try {
-						world.setFriendlyFire(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("forcetownmobs");
-				if (line != null)
-					try {
-						world.setForceTownMobs(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
 
-				line = keys.get("wildernessmobs");
-				if (line != null)
-					try {
-						world.setWildernessMobs(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("worldmobs");
-				if (line != null)
-					try {
-						world.setWorldMobs(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("firespread");
-				if (line != null)
-					try {
-						world.setFire(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("forcefirespread");
-				if (line != null)
-					try {
-						world.setForceFire(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("explosions");
-				if (line != null)
-					try {
-						world.setExpl(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("forceexplosions");
-				if (line != null)
-					try {
-						world.setForceExpl(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("endermanprotect");
-				if (line != null)
-					try {
-						world.setEndermanProtect(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("disablecreaturetrample");
-				if (line != null)
-					try {
-						world.setDisableCreatureTrample(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("unclaimedZoneBuild");
-				if (line != null)
-					try {
-						world.setUnclaimedZoneBuild(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("unclaimedZoneDestroy");
-				if (line != null)
-					try {
-						world.setUnclaimedZoneDestroy(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("unclaimedZoneSwitch");
-				if (line != null)
-					try {
-						world.setUnclaimedZoneSwitch(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("unclaimedZoneItemUse");
-				if (line != null)
-					try {
-						world.setUnclaimedZoneItemUse(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("unclaimedZoneName");
-				if (line != null)
-					try {
-						world.setUnclaimedZoneName(line);
-					} catch (Exception ignored) {
-					}
-				line = keys.get("unclaimedZoneIgnoreIds");
-				if (line != null)
-					try {
-						List<String> mats = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								mats.add(s);
-						
-						world.setUnclaimedZoneIgnore(mats);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementDelete");
-				if (line != null)
-					try {
-						world.setUsingPlotManagementDelete(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("plotManagementDeleteIds");
-				if (line != null)
-					try {
-						//List<Integer> nums = new ArrayList<Integer>();
-						List<String> mats = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								mats.add(s);
-						
-						world.setPlotManagementDeleteIds(mats);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementMayorDelete");
-				if (line != null)
-					try {
-						world.setUsingPlotManagementMayorDelete(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				line = keys.get("plotManagementMayorDelete");
-				if (line != null)
-					try {
-						List<String> materials = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								try {
-									materials.add(s.toUpperCase().trim());
-								} catch (NumberFormatException ignored) {
-								}
-						world.setPlotManagementMayorDelete(materials);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementRevert");
-				if (line != null)
-					try {
-						world.setUsingPlotManagementRevert(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-
-				line = keys.get("plotManagementIgnoreIds");
-				if (line != null)
-					try {
-						List<String> mats = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								mats.add(s);
-						
-						world.setPlotManagementIgnoreIds(mats);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementWildRegen");
-				if (line != null)
-					try {
-						world.setUsingPlotManagementWildEntityRevert(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("PlotManagementWildRegenEntities");
-				if (line != null)
-					try {
-						List<String> entities = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								try {
-									entities.add(s.trim());
-								} catch (NumberFormatException ignored) {
-								}
-						world.setPlotManagementWildRevertEntities(entities);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("PlotManagementWildRegenBlockWhitelist");
-				if (line != null)
-					try {
-						List<String> mats = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								try {
-									mats.add(s.trim());
-								} catch (NumberFormatException ignored) {
-								}
-						world.setPlotManagementWildRevertBlockWhitelist(mats);
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementWildRegenDelay");
-				if (line != null)
-					try {
-						world.setPlotManagementWildRevertDelay(Long.parseLong(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("usingPlotManagementWildRegenBlocks");
-				if (line != null)
-					try {
-						world.setUsingPlotManagementWildBlockRevert(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("PlotManagementWildRegenBlocks");
-				if (line != null)
-					try {
-						List<String> mats = new ArrayList<>();
-						for (String s : line.split(","))
-							if (!s.isEmpty())
-								try {
-									mats.add(s.trim());
-								} catch (NumberFormatException ignored) {
-								}
-						world.setPlotManagementWildRevertMaterials(mats);
-					} catch (Exception ignored) {
-					}
-
-				line = keys.get("usingTowny");
-				if (line != null)
-					try {
-						world.setUsingTowny(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-				
-				line = keys.get("warAllowed");
-				if (line != null)
-					try {
-						world.setWarAllowed(Boolean.parseBoolean(line));
-					} catch (Exception ignored) {
-					}
-
-				line = keys.get("metadata");
-				if (line != null && !line.isEmpty())
-					MetadataLoader.getInstance().deserializeMetadata(world, line.trim());
-				
-			} catch (Exception e) {
-				TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_exception_reading_world_file_at_line", path, line, world.getName()));
-				return false;
-			} finally {
-				saveWorld(world);
-			}
-			return true;
-		} else {
-			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_file_error_reading_world_file_at_line", world.getName(), line, world.getName()));
-			return false;
-		}
-	}
-	
 	/*
 	 * Save keys
 	 */

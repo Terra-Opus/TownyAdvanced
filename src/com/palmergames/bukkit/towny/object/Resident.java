@@ -86,6 +86,11 @@ public class Resident extends TownyObject implements InviteReceiver, EconomyHand
 		super(name);
 		permissions.loadDefault(this);
 	}
+	
+	public Resident(String name, UUID uuid) {
+		super(name);
+		this.uuid = uuid;
+	}
 
 	public void setLastOnline(long lastOnline) {
 

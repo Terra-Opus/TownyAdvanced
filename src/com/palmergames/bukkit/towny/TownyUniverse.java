@@ -334,6 +334,7 @@ public class TownyUniverse {
 
 		if (res == null && TownySettings.isFakeResident(residentName)) {
 			Resident npc = new Resident(residentName);
+			npc.setUUID(UUID.randomUUID());
 			npc.setNPC(true);
 			return npc;
 		}
@@ -374,6 +375,16 @@ public class TownyUniverse {
 	@NotNull
 	public Optional<Resident> getResidentOpt(@NotNull UUID residentUUID) {
 		return Optional.ofNullable(getResident(residentUUID));
+	}
+	
+	public void newResidentInternal(@NotNull UUID residentUUID) {
+		String name = getDataSource().getNameOfObject("RESIDENT", residentUUID);
+		if (name == null || name.isEmpty())
+			return;
+		Resident resident = new Resident(name, residentUUID);
+		try {
+			registerResident(resident);
+		} catch (AlreadyRegisteredException ignored) {}
 	}
 	
 	// Internal Use Only
@@ -520,8 +531,14 @@ public class TownyUniverse {
 	}
 
 	// Internal use only.
-	public void newTownInternal(String name) throws AlreadyRegisteredException, com.palmergames.bukkit.towny.exceptions.InvalidNameException {
-    	newTown(name, false);
+	public void newTownInternal(@NotNull UUID townUUID) {
+		String name = getDataSource().getNameOfObject("TOWN", townUUID);
+		if (name == null || name.isEmpty())
+			return;
+		Town town = new Town(name, townUUID);
+		try {
+			registerTown(town);
+		} catch (AlreadyRegisteredException ignored) {}
 	}
 
 	/**
@@ -538,7 +555,7 @@ public class TownyUniverse {
 	}
 
 	private void newTown(String name, boolean assignUUID) throws AlreadyRegisteredException, InvalidNameException {
-		String filteredName = NameValidation.checkAndFilterName(name);;
+		String filteredName = NameValidation.checkAndFilterName(name);
 
 		Town town = new Town(filteredName, assignUUID ? UUID.randomUUID() : null);
 		registerTown(town);
@@ -688,6 +705,16 @@ public class TownyUniverse {
 		return nationNameMap.size();
 	}
 
+	public void newNationInternal(@NotNull UUID nationUUID) {
+		String name = getDataSource().getNameOfObject("NATION", nationUUID);
+		if (name == null || name.isEmpty())
+			return;
+		Nation nation = new Nation(name, nationUUID);
+		try {
+			registerNation(nation);
+		} catch (AlreadyRegisteredException ignored) {}
+	}
+	
 	// This is used internally since UUIDs are assigned after nation objects are created.
 	public void registerNationUUID(@NotNull Nation nation) throws AlreadyRegisteredException {
 		Validate.notNull(nation, "Nation cannot be null!");
@@ -751,6 +778,19 @@ public class TownyUniverse {
 	
 	// =========== World Methods ===========
 	
+	public void newWorldInternal(@NotNull UUID worldUUID) {
+		String name = getDataSource().getNameOfObject("WORLD", worldUUID);
+		if (name == null || name.isEmpty())
+			return;
+		TownyWorld world = new TownyWorld(name, worldUUID);
+		registerTownyWorld(world);
+	}
+
+	public void registerTownyWorld(@NotNull TownyWorld world) {
+		Validate.notNull(world, "World cannot be null!");
+		worldIDMap.putIfAbsent(world.getUUID(), world);
+		worlds.putIfAbsent(world.getName().toLowerCase(Locale.ROOT), world);
+	}
 
 	public Map<UUID, TownyWorld> getWorldIDMap() {
 		return worldIDMap;
@@ -842,7 +882,6 @@ public class TownyUniverse {
     	PlotGroup group = new PlotGroup(uuid, null, null);
     	registerGroup(group);
     }
-    
 	
 	public void registerGroup(PlotGroup group) {
 		plotGroupUUIDMap.put(group.getUUID(), group);

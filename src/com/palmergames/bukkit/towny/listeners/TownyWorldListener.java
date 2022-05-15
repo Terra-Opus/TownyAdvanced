@@ -5,7 +5,6 @@ import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.TownyMessaging;
 import com.palmergames.bukkit.towny.TownyUniverse;
 import com.palmergames.bukkit.towny.event.executors.TownyActionEventExecutor;
-import com.palmergames.bukkit.towny.exceptions.AlreadyRegisteredException;
 import com.palmergames.bukkit.towny.object.TownyWorld;
 import java.util.List;
 
@@ -49,30 +48,18 @@ public class TownyWorldListener implements Listener {
 	}
 
 	private void newWorld(World world) {
-		
-		String worldName = world.getName();
-		
-		// Don't create a new world for temporary DungeonsXL instanced worlds.
-		boolean dungeonWorld = Bukkit.getServer().getPluginManager().getPlugin("DungeonsXL") != null && worldName.startsWith("DXL_");
-		
-		TownyUniverse townyUniverse = TownyUniverse.getInstance();
+		// Check if this world was already loaded by Towny and present in the DB.
+		if (TownyUniverse.getInstance().getWorldIDMap().containsKey(world.getUID()))
+			return;
 
-		try {
-			TownyUniverse.getInstance().getDataSource().newWorld(world);
-			TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(world.getUID());
-			if (townyWorld == null)
-				TownyMessaging.sendErrorMsg("Could not create data for " + worldName);
-			else {
-				if (dungeonWorld)
-					townyWorld.setUsingTowny(false);
-				else 
-					if (!townyUniverse.getDataSource().loadWorld(world.getUID())) {
-						// First time world has been noticed
-						townyWorld.save();
-					}
-			}
-		} catch (AlreadyRegisteredException e) {
-			// Already loaded			
+		TownyUniverse.getInstance().getDataSource().newWorld(world);
+		TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(world.getUID());
+		if (townyWorld == null)
+			TownyMessaging.sendErrorMsg("Could not create data for " + world.getName());
+		else if (world.getName().startsWith("DXL_") &&
+				Bukkit.getServer().getPluginManager().getPlugin("DungeonsXL") != null) {
+			townyWorld.setUsingTowny(false);
+			townyWorld.save();
 		}
 	}
 

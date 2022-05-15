@@ -80,6 +80,11 @@ public class TownyWorld extends TownyObject {
 	public TownyWorld(String name) {
 		super(name);
 	}
+
+	public TownyWorld(String name, UUID uuid) {
+		super(name);
+		this.uuid = uuid;
+	}
 	
 	public UUID getUUID() {
 		return uuid;

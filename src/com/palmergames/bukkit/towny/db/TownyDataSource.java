@@ -3,7 +3,6 @@ package com.palmergames.bukkit.towny.db;
 import com.palmergames.bukkit.towny.Towny;
 import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.TownyMessaging;
-import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
 import com.palmergames.bukkit.towny.exceptions.AlreadyRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.InvalidNameException;
@@ -51,20 +50,6 @@ public abstract class TownyDataSource {
 	TownyDataSource(Towny plugin, TownyUniverse universe) {
 		this.plugin = plugin;
 		this.universe = universe;
-	}
-	
-	public enum TownyDataSourceType {
-		FLATFILE,
-		MYSQL,
-		UNKNOWN;
-	}
-	
-	public TownyDataSourceType getDataSourceType() {
-		if (this instanceof TownyFlatFileSource)
-			return TownyDataSourceType.FLATFILE;
-		if (this instanceof TownySQLSource)
-			return TownyDataSourceType.MYSQL;
-		return TownyDataSourceType.UNKNOWN;
 	}
 	
 	public boolean isFlatFile() {
@@ -137,6 +122,23 @@ public abstract class TownyDataSource {
 	
 	abstract public boolean loadTownBlocks();
 
+	/*
+	 * Load object from the database into Memory, to be entered into the Objects themselves 
+	 */
+	
+	abstract public boolean loadJail(Jail jail);
+	
+	abstract public boolean loadPlotGroup(PlotGroup group);
+	
+	abstract public boolean loadResident(Resident resident);
+	
+	abstract public boolean loadTown(Town town);
+
+	abstract public boolean loadNation(Nation nation);
+	
+	abstract public boolean loadWorld(TownyWorld world);
+	
+	
 	/*
 	 * Load object Data from the database into Memory, to be entered into the Objects themselves 
 	 */
@@ -293,6 +295,8 @@ public abstract class TownyDataSource {
 	/*
 	 * Misc
 	 */
+
+	abstract public String getNameOfObject(String type, UUID uuid);
 	
 	abstract public CompletableFuture<Optional<Long>> getHibernatedResidentRegistered(UUID uuid);
 
@@ -541,8 +545,6 @@ public abstract class TownyDataSource {
 	abstract public void newNation(String name) throws AlreadyRegisteredException, NotRegisteredException;
 
 	abstract public void newNation(String name, UUID uuid) throws AlreadyRegisteredException, NotRegisteredException;
-
-	abstract public void newWorld(String name) throws AlreadyRegisteredException;
 
 	abstract public void removeTown(Town town);
 

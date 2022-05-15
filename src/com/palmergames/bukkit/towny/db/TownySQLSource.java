@@ -11,7 +11,6 @@ import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.TownyMessaging;
 import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
-import com.palmergames.bukkit.towny.db.TownyFlatFileSource.TownyDBFileType;
 import com.palmergames.bukkit.towny.exceptions.AlreadyRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.EmptyNationException;
 import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
@@ -478,7 +477,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		RESIDENT("RESIDENTS", "SELECT name FROM ", "name"),
 		HIBERNATED_RESIDENT("HIBERNATEDRESIDENTS", "", "uuid"),
 		JAIL("JAILS", "SELECT uuid FROM ", "uuid"),
-		WORLD("WORLD", "SELECT name FROM ", "name"),
+		WORLD("WORLDS", "SELECT name FROM ", "name"),
 		TOWNBLOCK("TOWNBLOCKS", "SELECT world,x,z FROM ", "name"),
 		PLOTGROUP("PLOTGROUPS", "SELECT groupID FROM ", "groupID");
 		
@@ -561,6 +560,25 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 			keys.put(md.getColumnName(i), rs.getString(i));
 		}
 		return keys;
+	}
+	
+	public String getNameOfObject(String type, UUID uuid) {
+		if (!getContext())
+			return "";
+		
+		TownyDBTableType tableType = TownyDBTableType.valueOf(type.toUpperCase(Locale.ROOT));
+		try {
+			try (Statement s = cntx.createStatement()) {
+				ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + tableType.tableName + " WHERE uuid='" + uuid + "'");
+				while (rs.next())
+					return rs.getString("name");
+			}
+		} catch (SQLException s) {
+			s.printStackTrace();
+		} catch (Exception e) {
+			TownyMessaging.sendErrorMsg(e.getMessage());
+		}
+		return null;
 	}
 	
 	/*
@@ -724,7 +742,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	
 		try (Statement s = cntx.createStatement();
 			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "RESIDENTS WHERE uuid='" + uuid + "'")) {
-			return loadResident(resident, uuid, loadResultSetIntoHashMap(rs));
+			return loadResident(resident, loadResultSetIntoHashMap(rs));
 		} catch (SQLException e) {
 			TownyMessaging.sendErrorMsg("SQL: Load resident sql Error - " + e.getMessage());
 			return false;
@@ -743,7 +761,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	
 		try (Statement s = cntx.createStatement();
 			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "TOWNS WHERE uuid='" + uuid + "'")) {
-			return loadTown(town, uuid, loadResultSetIntoHashMap(rs));
+			return loadTown(town, loadResultSetIntoHashMap(rs));
 		} catch (SQLException e) {
 			TownyMessaging.sendErrorMsg("SQL: Load town sql Error - " + e.getMessage());
 			return false;
@@ -769,6 +787,26 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		}
 	}
 
+	@Override
+	public boolean loadWorldData(UUID uuid) {
+		if (!getContext())
+			return false;
+		TownyWorld world = universe.getWorld(uuid);
+		if (world == null) {
+			TownyMessaging.sendErrorMsg("Cannot find a world with the UUID " + uuid.toString() + " in the TownyUniverse.");
+			return false; 
+		}
+	
+		try (Statement s = cntx.createStatement();
+			ResultSet rs = s.executeQuery("SELECT uuid FROM " + tb_prefix + "WORLDS WHERE uuid='" + uuid + "'")) {
+			return loadWorld(world, loadResultSetIntoHashMap(rs));
+		} catch (SQLException e) {
+			TownyMessaging.sendErrorMsg("SQL: Load world sql Error - " + e.getMessage());
+			return false;
+		}
+	}
+
+	
 	private boolean loadTown(ResultSet rs) {
 		String line;
 		String[] tokens;
@@ -2283,6 +2321,5 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	public HikariDataSource getHikariDataSource() {
 		return hikariDataSource;
 	}
-
 
 }
