@@ -51,11 +51,11 @@ public abstract class TownyDataSource {
 		this.plugin = plugin;
 		this.universe = universe;
 	}
-	
+
 	public boolean isFlatFile() {
 		return this instanceof TownyFlatFileSource;
 	}
-	
+
 	public boolean isMySQL() {
 		return this instanceof TownySQLSource;
 	}
@@ -87,8 +87,10 @@ public abstract class TownyDataSource {
 	/*
 	 * Load Lists (Gathering UUIDs to load in full later.)
 	 */
-	
-	abstract public boolean loadTownBlockList();
+
+	abstract public boolean loadJailList();
+
+	abstract public boolean loadPlotGroupList();
 
 	abstract public boolean loadResidentList();
 
@@ -98,69 +100,66 @@ public abstract class TownyDataSource {
 
 	abstract public boolean loadWorldList();
 
+	abstract public boolean loadTownBlockList();
+
 	abstract public boolean loadRegenList();
 
 	abstract public boolean loadSnapshotList();
 
-	abstract public boolean loadJailList();
-	
 	/*
 	 * Load all objects of the given type, using the UUIDs gathered into TownyUniverse. 
 	 */
-	
+
 	abstract public boolean loadJails();
-	
+
 	abstract public boolean loadPlotGroups();
-	
+
 	abstract public boolean loadResidents();
-	
+
 	abstract public boolean loadTowns();
-	
+
 	abstract public boolean loadNations();
-	
+
 	abstract public boolean loadWorlds();
-	
+
 	abstract public boolean loadTownBlocks();
 
 	/*
 	 * Load object from the database into Memory, to be entered into the Objects themselves 
 	 */
-	
+
 	abstract public boolean loadJail(Jail jail);
-	
+
 	abstract public boolean loadPlotGroup(PlotGroup group);
-	
+
 	abstract public boolean loadResident(Resident resident);
-	
+
 	abstract public boolean loadTown(Town town);
 
 	abstract public boolean loadNation(Nation nation);
-	
+
 	abstract public boolean loadWorld(TownyWorld world);
-	
-	
+
 	/*
 	 * Load object Data from the database into Memory, to be entered into the Objects themselves 
 	 */
-	
+
 	abstract public boolean loadJailData(UUID uuid);
-	
+
 	abstract public boolean loadPlotGroupData(UUID uuid);
-	
+
 	abstract public boolean loadResidentData(UUID uuid);
-	
+
 	abstract public boolean loadTownData(UUID uuid);
 
 	abstract public boolean loadNationData(UUID uuid);
-	
+
 	abstract public boolean loadWorldData(UUID uuid);
-	
-	abstract public boolean loadPlotGroupList();
 
 	/*
 	 * Legacy database entries that still store a list of keys in a file. 
 	 */
-	
+
 	abstract public boolean saveWorldList();
 
 	abstract public boolean saveRegenList();
@@ -170,7 +169,7 @@ public abstract class TownyDataSource {
 	/*
 	 * Individual objects saving methods.
 	 */
-	
+
 	abstract public boolean saveResident(Resident resident);
 
 	abstract public boolean saveHibernatedResident(UUID uuid, long registered);
@@ -253,31 +252,31 @@ public abstract class TownyDataSource {
 		}
 		return true;
 	}
-	
+
 	/*
 	 * PlotBlockData methods.
 	 */
-	
+
 	abstract public PlotBlockData loadPlotData(String worldName, int x, int z);
 
 	abstract public PlotBlockData loadPlotData(TownBlock townBlock);
-	
+
 	abstract public boolean hasPlotData(TownBlock townBlock);
 
 	/*
 	 * Delete methods.
 	 */
-	
+
 	abstract public void deleteObject(String type, UUID uuid);
-	
+
 	abstract public void deleteObject(String type, String name);
-	
+
 	abstract public void deletePlotData(PlotBlockData plotChunk);
 
 	abstract public void deleteResident(Resident resident);
 
 	abstract public void deleteHibernatedResident(UUID uuid);
-	
+
 	abstract public void deleteTown(Town town);
 
 	abstract public void deleteNation(Nation nation);
@@ -287,17 +286,17 @@ public abstract class TownyDataSource {
 	abstract public void deleteTownBlock(TownBlock townBlock);
 
 	abstract public void deleteFile(String file);
-	
+
 	abstract public void deletePlotGroup(PlotGroup group);
-	
+
 	abstract public void deleteJail(Jail jail);
-	
+
 	/*
 	 * Misc
 	 */
 
 	abstract public String getNameOfObject(String type, UUID uuid);
-	
+
 	abstract public CompletableFuture<Optional<Long>> getHibernatedResidentRegistered(UUID uuid);
 
 	public boolean cleanup() {
@@ -520,7 +519,7 @@ public abstract class TownyDataSource {
 	abstract public Collection<TownBlock> getAllTownBlocks();
 
 	abstract public void newWorld(World world);
-	
+
 	abstract public void newResident(String name) throws AlreadyRegisteredException, NotRegisteredException;
 
 	abstract public void newResident(String name, UUID uuid) throws AlreadyRegisteredException, NotRegisteredException;

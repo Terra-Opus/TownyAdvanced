@@ -373,11 +373,11 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			if (resident.isJailed()) {
 				line = keys.get("jailCell");
 				if (line != null)
-					resident.setJailCell(Integer.valueOf(line));
+					resident.setJailCell(Integer.parseInt(line));
 				
 				line = keys.get("jailHours");
 				if (line != null)
-					resident.setJailHours(Integer.valueOf(line));
+					resident.setJailHours(Integer.parseInt(line));
 			}
 			line = keys.get("friends");
 			if (line != null) {
@@ -506,8 +506,8 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 						TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_homeblock_load_invalid_world", town.getName()));
 					else {
 						try {
-							int x = Integer.valueOf(tokens[1]);
-							int z = Integer.valueOf(tokens[2]);
+							int x = Integer.parseInt(tokens[1]);
+							int z = Integer.parseInt(tokens[2]);
 							TownBlock homeBlock = universe.getTownBlock(new WorldCoord(world.getName(), x, z));
 							town.forceSetHomeBlock(homeBlock);
 						} catch (NumberFormatException e) {
@@ -731,19 +731,19 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 	 */
 	
 	private boolean getOrDefault(HashMap<String, String> keys, String key, boolean bool) {
-		return Boolean.valueOf(keys.getOrDefault(key, String.valueOf(bool)));
+		return Boolean.parseBoolean(keys.getOrDefault(key, String.valueOf(bool)));
 	}
 	
 	private long getOrDefault(HashMap<String, String> keys, String key, long num) {
-		return Long.valueOf(keys.getOrDefault(key, String.valueOf(num)));
+		return Long.parseLong(keys.getOrDefault(key, String.valueOf(num)));
 	}
 
 	private double getOrDefault(HashMap<String, String> keys, String key, double num) {
-		return Double.valueOf(keys.getOrDefault(key, String.valueOf(num)));
+		return Double.parseDouble(keys.getOrDefault(key, String.valueOf(num)));
 	}
 
 	private int getOrDefault(HashMap<String, String> keys, String key, int num) {
-		return Integer.valueOf(keys.getOrDefault(key, String.valueOf(num)));
+		return Integer.parseInt(keys.getOrDefault(key, String.valueOf(num)));
 	}
 	
 	private List<String> toList(String string) {
@@ -1598,7 +1598,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			while ((line = fin.readLine()) != null)
 				if (!line.equals("")) {
 					split = line.split(",");
-					WorldCoord wc = new WorldCoord(split[0], Integer.valueOf(split[1]), Integer.valueOf(split[2]));
+					WorldCoord wc = new WorldCoord(split[0], Integer.parseInt(split[1]), Integer.parseInt(split[2]));
 					TownyRegenAPI.addToRegenQueueList(wc, false);
 				}
 			
@@ -1626,7 +1626,7 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			while ((line = fin.readLine()) != null)
 				if (!line.equals("")) {
 					split = line.split(",");
-					WorldCoord worldCoord = new WorldCoord(split[0], Integer.valueOf(split[1]), Integer.valueOf(split[2]));
+					WorldCoord worldCoord = new WorldCoord(split[0], Integer.parseInt(split[1]), Integer.parseInt(split[2]));
 					TownyRegenAPI.addWorldCoord(worldCoord);
 				}
 			return true;

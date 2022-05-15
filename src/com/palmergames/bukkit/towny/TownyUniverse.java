@@ -700,7 +700,7 @@ public class TownyUniverse {
 	public Set<UUID> getNationUUIDs() {
 		return nationUUIDMap.keySet();
 	}
-	
+
 	public int getNumNations() {
 		return nationNameMap.size();
 	}
@@ -714,7 +714,7 @@ public class TownyUniverse {
 			registerNation(nation);
 		} catch (AlreadyRegisteredException ignored) {}
 	}
-	
+
 	// This is used internally since UUIDs are assigned after nation objects are created.
 	public void registerNationUUID(@NotNull Nation nation) throws AlreadyRegisteredException {
 		Validate.notNull(nation, "Nation cannot be null!");
@@ -808,7 +808,7 @@ public class TownyUniverse {
 	public Map<String, TownyWorld> getWorldMap() {
         return worlds;
     }
-
+	
 	@Nullable
 	public TownyWorld getWorld(String name) {
 		return worlds.get(name.toLowerCase(Locale.ROOT));
