@@ -127,6 +127,10 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 		}, 5L, 5L);
 	}
 	
+	public String getDataFolderPath() {
+		return this.dataFolderPath;
+	}
+	
 	@Override
 	public void finishTasks() {
 		
@@ -243,6 +247,17 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 
 		universe.getWorldMap().put(name.toLowerCase(), new TownyWorld(name));
 	}
+	
+	@Override
+	public void newWorld(World world) {
+		UUID uuid = world.getUID();
+		String name = world.getName();
+		if (universe.getWorldIDMap().containsKey(uuid))
+			throw new AlreadyRegisteredException("The world " + name + " is already in use.");
+		TownyWorld townyWorld = new TownyWorld(name, uuid);
+		universe.getWorldIDMap().put(uuid, townyWorld);
+		universe.getWorldMap().put(name.toLowerCase(), townyWorld);
+	}
 
 	/*
 	 * New Load Object Methods
@@ -287,6 +302,40 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			}
 		}
 		return true;
+	}
+	
+	public boolean loadPlotGroup(PlotGroup group, HashMap<String, String> keys) {
+		String line = "";
+		try {
+			line = keys.get("groupName");
+			if (line != null)
+				group.setName(line.trim());
+			
+			line = keys.get("town");
+			if (line != null && !line.isEmpty()) {
+				Town town = universe.getTown(line.trim());
+				if (town != null) {
+					group.setTown(town);
+				} else {
+					TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_group_file_missing_town_delete", group.getSaveLocation()));
+					deletePlotGroup(group); 
+					TownyMessaging.sendDebugMsg(Translation.of("flatfile_dbg_missing_file_delete_group_entry", group.getSaveLocation()));
+					return true;
+				}
+			} else {
+				TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_could_not_add_to_town"));
+				deletePlotGroup(group);
+			}
+			
+			line = keys.get("groupPrice");
+			if (line != null && !line.isEmpty())
+				group.setPrice(Double.parseDouble(line.trim()));
+
+			return true;
+		} catch (Exception e) {
+			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_exception_reading_group_file_at_line", group.getSaveLocation(), line));
+			return false;
+		}
 	}
 	
 	public boolean loadResident(Resident resident, UUID uuid, HashMap<String, String> keys) {
@@ -482,8 +531,8 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 				Nation nation = null;
 				if (universe.hasNation(line))
 					nation = universe.getNation(line);
-				else if (universe.getReplacementNameMap().containsKey(line))
-					nation = universe.getNation(universe.getReplacementNameMap().get(line));
+//				else if (universe.getReplacementNameMap().containsKey(line))
+//					nation = universe.getNation(universe.getReplacementNameMap().get(line));
 
 				// Only set the nation if it exists
 				if (nation != null)
@@ -606,6 +655,194 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 			return false;
 		} finally {
 			saveNation(nation);
+		}
+		return true;
+	}
+	
+	public boolean loadWorld(TownyWorld world, HashMap<String, String> keys) {
+		String line = "";
+		try {
+			world.setName(keys.getOrDefault("name", generateMissingName()));
+			world.setClaimable(getBoolean(keys.getOrDefault("claimable", "true")));
+			world.setPVP(getBoolean(keys.getOrDefault("pvp", getDefault(TownySettings.isPvP()))));
+			world.setForcePVP(getBoolean(keys.getOrDefault("forcepvp", getDefault(TownySettings.isForcingPvP()))));
+			world.setFriendlyFire(getBoolean(keys.getOrDefault("friendlyFire", getDefault(TownySettings.isFriendlyFireEnabled()))));
+			world.setForceTownMobs(getBoolean(keys.getOrDefault("forcetownmobs", getDefault(TownySettings.isForcingMonsters()))));
+			world.setWildernessMobs(getBoolean(keys.getOrDefault("wildernessmobs", getDefault(TownySettings.isWildernessMonstersOn()))));
+			world.setWorldMobs(getBoolean(keys.getOrDefault("worldmobs", getDefault(TownySettings.isWorldMonstersOn()))));
+			world.setFire(getBoolean(keys.getOrDefault("firespread", getDefault(TownySettings.isFire()))));
+			world.setForceFire(getBoolean(keys.getOrDefault("forcefirespread", getDefault(TownySettings.isForcingFire()))));
+			world.setExpl(getBoolean(keys.getOrDefault("explosions", getDefault(TownySettings.isExplosions()))));
+			world.setForceExpl(getBoolean(keys.getOrDefault("forceexplosions", getDefault(TownySettings.isForcingExplosions()))));
+			world.setEndermanProtect(getBoolean(keys.getOrDefault("endermanprotect", getDefault(TownySettings.getEndermanProtect()))));
+			world.setDisableCreatureTrample(getBoolean(keys.getOrDefault("disablecreaturetrample", getDefault(TownySettings.isCreatureTramplingCropsDisabled()))));
+			world.setUnclaimedZoneBuild(getBoolean(keys.getOrDefault("unclaimedZoneBuild", getDefault(TownySettings.getUnclaimedZoneBuildRights()))));
+			world.setUnclaimedZoneDestroy(getBoolean(keys.getOrDefault("unclaimedZoneDestroy", getDefault(TownySettings.getUnclaimedZoneDestroyRights()))));
+			world.setUnclaimedZoneSwitch(getBoolean(keys.getOrDefault("unclaimedZoneSwitch", getDefault(TownySettings.getUnclaimedZoneSwitchRights()))));
+			world.setUnclaimedZoneItemUse(getBoolean(keys.getOrDefault("unclaimedZoneItemUse", getDefault(TownySettings.getUnclaimedZoneItemUseRights()))));
+			world.setUnclaimedZoneName(keys.getOrDefault("unclaimedZoneName", TownySettings.getUnclaimedZoneName()));
+			line = keys.get("unclaimedZoneName");
+			if (line != null)
+				try {
+					world.setUnclaimedZoneName(line);
+				} catch (Exception ignored) {
+				}
+			line = keys.get("unclaimedZoneIgnoreIds");
+			if (line != null)
+				try {
+					List<String> mats = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							mats.add(s);
+					
+					world.setUnclaimedZoneIgnore(mats);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementDelete");
+			if (line != null)
+				try {
+					world.setUsingPlotManagementDelete(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+			line = keys.get("plotManagementDeleteIds");
+			if (line != null)
+				try {
+					//List<Integer> nums = new ArrayList<Integer>();
+					List<String> mats = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							mats.add(s);
+					
+					world.setPlotManagementDeleteIds(mats);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementMayorDelete");
+			if (line != null)
+				try {
+					world.setUsingPlotManagementMayorDelete(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+			line = keys.get("plotManagementMayorDelete");
+			if (line != null)
+				try {
+					List<String> materials = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							try {
+								materials.add(s.toUpperCase().trim());
+							} catch (NumberFormatException ignored) {
+							}
+					world.setPlotManagementMayorDelete(materials);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementRevert");
+			if (line != null)
+				try {
+					world.setUsingPlotManagementRevert(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+
+			line = keys.get("plotManagementIgnoreIds");
+			if (line != null)
+				try {
+					List<String> mats = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							mats.add(s);
+					
+					world.setPlotManagementIgnoreIds(mats);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementWildRegen");
+			if (line != null)
+				try {
+					world.setUsingPlotManagementWildEntityRevert(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("PlotManagementWildRegenEntities");
+			if (line != null)
+				try {
+					List<String> entities = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							try {
+								entities.add(s.trim());
+							} catch (NumberFormatException ignored) {
+							}
+					world.setPlotManagementWildRevertEntities(entities);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("PlotManagementWildRegenBlockWhitelist");
+			if (line != null)
+				try {
+					List<String> mats = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							try {
+								mats.add(s.trim());
+							} catch (NumberFormatException ignored) {
+							}
+					world.setPlotManagementWildRevertBlockWhitelist(mats);
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementWildRegenDelay");
+			if (line != null)
+				try {
+					world.setPlotManagementWildRevertDelay(Long.parseLong(line));
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("usingPlotManagementWildRegenBlocks");
+			if (line != null)
+				try {
+					world.setUsingPlotManagementWildBlockRevert(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("PlotManagementWildRegenBlocks");
+			if (line != null)
+				try {
+					List<String> mats = new ArrayList<>();
+					for (String s : line.split(","))
+						if (!s.isEmpty())
+							try {
+								mats.add(s.trim());
+							} catch (NumberFormatException ignored) {
+							}
+					world.setPlotManagementWildRevertMaterials(mats);
+				} catch (Exception ignored) {
+				}
+
+			line = keys.get("usingTowny");
+			if (line != null)
+				try {
+					world.setUsingTowny(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+			
+			line = keys.get("warAllowed");
+			if (line != null)
+				try {
+					world.setWarAllowed(Boolean.parseBoolean(line));
+				} catch (Exception ignored) {
+				}
+
+			line = keys.get("metadata");
+			if (line != null && !line.isEmpty())
+				MetadataLoader.getInstance().deserializeMetadata(world, line.trim());
+			
+		} catch (Exception e) {
+			TownyMessaging.sendErrorMsg(Translation.of("flatfile_err_exception_reading_world_file_at_line", world.getSaveLocation(), line, world.getName()));
+			return false;
+		} finally {
+			saveWorld(world);
 		}
 		return true;
 	}
@@ -1710,6 +1947,10 @@ public abstract class TownyDatabaseHandler extends TownyDataSource {
 	
 	private double getDouble(String num) {
 		return Double.parseDouble(num);
+	}
+	
+	private String getDefault(Boolean bool) {
+		return String.valueOf(bool);
 	}
 
 	/**

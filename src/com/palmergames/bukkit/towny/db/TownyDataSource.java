@@ -16,6 +16,8 @@ import com.palmergames.bukkit.towny.object.TownBlock;
 import com.palmergames.bukkit.towny.object.TownyWorld;
 import com.palmergames.bukkit.towny.object.jail.Jail;
 import com.palmergames.bukkit.towny.regen.PlotBlockData;
+
+import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -49,6 +51,28 @@ public abstract class TownyDataSource {
 	TownyDataSource(Towny plugin, TownyUniverse universe) {
 		this.plugin = plugin;
 		this.universe = universe;
+	}
+	
+	public enum TownyDataSourceType {
+		FLATFILE,
+		MYSQL,
+		UNKNOWN;
+	}
+	
+	public TownyDataSourceType getDataSourceType() {
+		if (this instanceof TownyFlatFileSource)
+			return TownyDataSourceType.FLATFILE;
+		if (this instanceof TownySQLSource)
+			return TownyDataSourceType.MYSQL;
+		return TownyDataSourceType.UNKNOWN;
+	}
+	
+	public boolean isFlatFile() {
+		return this instanceof TownyFlatFileSource;
+	}
+	
+	public boolean isMySQL() {
+		return this instanceof TownySQLSource;
 	}
 
 	public abstract boolean backup() throws IOException;
@@ -119,11 +143,15 @@ public abstract class TownyDataSource {
 	
 	abstract public boolean loadJailData(UUID uuid);
 	
+	abstract public boolean loadPlotGroupData(UUID uuid);
+	
 	abstract public boolean loadResidentData(UUID uuid);
 	
 	abstract public boolean loadTownData(UUID uuid);
 
 	abstract public boolean loadNationData(UUID uuid);
+	
+	abstract public boolean loadWorldData(UUID uuid);
 	
 	abstract public boolean loadPlotGroupList();
 
@@ -487,6 +515,8 @@ public abstract class TownyDataSource {
 	@Deprecated
 	abstract public Collection<TownBlock> getAllTownBlocks();
 
+	abstract public void newWorld(World world);
+	
 	abstract public void newResident(String name) throws AlreadyRegisteredException, NotRegisteredException;
 
 	abstract public void newResident(String name, UUID uuid) throws AlreadyRegisteredException, NotRegisteredException;

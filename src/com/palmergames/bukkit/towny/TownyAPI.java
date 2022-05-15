@@ -484,6 +484,17 @@ public class TownyAPI {
     /**
      * Returns {@link TownyWorld} unless it is null.
      * 
+     * @param worldUUID - the uuid of the world to get.
+     * @return TownyWorld or {@code null}.
+     */
+    @Nullable
+    public TownyWorld getTownyWorld(UUID worldUUID) {
+    	return townyUniverse.getWorld(worldUUID);
+    }
+    
+    /**
+     * Returns {@link TownyWorld} unless it is null.
+     * 
      * @param world - the world to get.
      * @return TownyWorld or {@code null}.
      */

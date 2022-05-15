@@ -44,10 +44,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Towny's class for internal API Methods
@@ -73,6 +73,8 @@ public class TownyUniverse {
     private final Trie nationsTrie = new Trie();
     
     private final Map<String, TownyWorld> worlds = new ConcurrentHashMap<>();
+    private final Map<UUID, TownyWorld> worldIDMap = new ConcurrentHashMap<>();
+    
     private final Map<String, CustomDataField<?>> registeredMetadata = new HashMap<>();
 	private final Map<WorldCoord, TownBlock> townBlocks = new ConcurrentHashMap<>();
 	private CompletableFuture<Void> backupFuture;
@@ -437,8 +439,8 @@ public class TownyUniverse {
 		return Collections.unmodifiableCollection(residentNameMap.values());
 	}
 
-	public List<UUID> getResidentUUIDs() {
-		return residentUUIDMap.keySet().stream().collect(Collectors.toList());
+	public Set<UUID> getResidentUUIDs() {
+		return residentUUIDMap.keySet();
 	}
 
 	/**
@@ -509,8 +511,8 @@ public class TownyUniverse {
     	return Collections.unmodifiableCollection(townNameMap.values());
 	}
 
-	public List<UUID> getTownUUIDs() {
-		return townUUIDMap.keySet().stream().collect(Collectors.toList());
+	public Set<UUID> getTownUUIDs() {
+		return townUUIDMap.keySet();
 	}
 	
     public Trie getTownsTrie() {
@@ -678,8 +680,8 @@ public class TownyUniverse {
 		return Collections.unmodifiableCollection(nationNameMap.values());
 	}
 	
-	public List<UUID> getNationUUIDs() {
-		return nationUUIDMap.keySet().stream().collect(Collectors.toList());
+	public Set<UUID> getNationUUIDs() {
+		return nationUUIDMap.keySet();
 	}
 	
 	public int getNumNations() {
@@ -749,10 +751,24 @@ public class TownyUniverse {
 	
 	// =========== World Methods ===========
 	
+
+	public Map<UUID, TownyWorld> getWorldIDMap() {
+		return worldIDMap;
+	}
+
+	@Nullable
+	public TownyWorld getWorld(UUID uuid) {
+		return worldIDMap.get(uuid);
+	}
+	
+	public Set<UUID> getWorldUUIDs() {
+		return worldIDMap.keySet();
+	}
+
 	public Map<String, TownyWorld> getWorldMap() {
         return worlds;
     }
-	
+
 	@Nullable
 	public TownyWorld getWorld(String name) {
 		return worlds.get(name.toLowerCase(Locale.ROOT));
@@ -829,12 +845,12 @@ public class TownyUniverse {
     
 	
 	public void registerGroup(PlotGroup group) {
-		plotGroupUUIDMap.put(group.getID(), group);
+		plotGroupUUIDMap.put(group.getUUID(), group);
 	}
 
 	public void unregisterGroup(PlotGroup group) {
 		group.getTown().removePlotGroup(group);
-		plotGroupUUIDMap.remove(group.getID());
+		plotGroupUUIDMap.remove(group.getUUID());
 	}
 	
 	public void unregisterGroup(UUID uuid) {
@@ -855,8 +871,8 @@ public class TownyUniverse {
     	return new ArrayList<>(plotGroupUUIDMap.values());
 	}
 
-	public List<UUID> getPlotGroupUUIDs() {
-		return plotGroupUUIDMap.keySet().stream().collect(Collectors.toList());
+	public Set<UUID> getPlotGroupUUIDs() {
+		return plotGroupUUIDMap.keySet();
 	}
 
 	/**
@@ -1006,8 +1022,8 @@ public class TownyUniverse {
 		return new ArrayList<>(getJailUUIDMap().values());
 	}
 	
-	public List<UUID> getJailUUIDs() {
-		return jailUUIDMap.keySet().stream().collect(Collectors.toList());
+	public Set<UUID> getJailUUIDs() {
+		return jailUUIDMap.keySet();
 	}
 	
     public Map<UUID, Jail> getJailUUIDMap() {

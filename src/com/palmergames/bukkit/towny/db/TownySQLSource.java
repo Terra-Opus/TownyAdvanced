@@ -497,6 +497,10 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 			return tableName.substring(tableName.length()-1).toLowerCase(Locale.ROOT);
 		}
 		
+		public String getSaveLocation(String rowKeyName) {
+			return TownySettings.getSQLTablePrefix() + tableName + File.separator + rowKeyName;
+		}
+		
 		public String getLoadErrorMsg(UUID uuid) {
 			return "Loading Error: Could not read the " + getSingular() + " with UUID '" + uuid + "' from the " + tableName + " table.";
 		}
@@ -526,7 +530,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		return false;
 	}
 	
-	public boolean loadResultSetOfType(TownyDBTableType type, List<UUID> uuids) {
+	public boolean loadResultSetOfType(TownyDBTableType type, Set<UUID> uuids) {
 		for (UUID uuid : uuids) {
 			if (!loadResultSet(type, uuid)) {
 				plugin.getLogger().severe(type.getLoadErrorMsg(uuid));
@@ -540,7 +544,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		return switch (type) {
 		case JAIL -> loadJailData(uuid);
 		case NATION -> loadNationData(uuid);
-		case PLOTGROUP -> throw new UnsupportedOperationException("Unimplemented case: " + type);
+		case PLOTGROUP -> loadPlotGroupData(uuid);
 		case RESIDENT -> loadResidentData(uuid);
 		case TOWN -> loadTownData(uuid);
 		case TOWNBLOCK -> throw new UnsupportedOperationException("Unimplemented case: " + type);
@@ -633,8 +637,6 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 
 	}
 
-
-
 	/*
 	 * Load individual Towny object-callers
 	 */
@@ -664,6 +666,11 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		return loadResultSetOfType(TownyDBTableType.NATION, universe.getNationUUIDs());
 	}
 	
+	@Override
+	public boolean loadWorlds() {
+		return loadResultSetOfType(TownyDBTableType.WORLD, universe.getWorldUUIDs());
+	}
+	
 	/*
 	 * Load individual towny object
 	 */
@@ -682,6 +689,25 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 			return loadJail(jail, loadResultSetIntoHashMap(rs));
 		} catch (SQLException e) {
 			TownyMessaging.sendErrorMsg("SQL: Load jail sql Error - " + e.getMessage());
+			return false;
+		}
+	}
+	
+	@Override
+	public boolean loadPlotGroupData(UUID uuid) {
+		if (!getContext())
+			return false;
+		PlotGroup plotGroup = universe.getGroup(uuid);
+		if (plotGroup == null) {
+			TownyMessaging.sendErrorMsg("Cannot find a plotgroup with the UUID " + uuid.toString() + " in the TownyUniverse.");
+			return false; 
+		}
+	
+		try (Statement s = cntx.createStatement();
+			ResultSet rs = s.executeQuery("SELECT groupID FROM " + tb_prefix + "PLOTGROUPS WHERE groupID='" + uuid + "'")) {
+			return loadPlotGroup(plotGroup, loadResultSetIntoHashMap(rs));
+		} catch (SQLException e) {
+			TownyMessaging.sendErrorMsg("SQL: Load plotgroup sql Error - " + e.getMessage());
 			return false;
 		}
 	}
@@ -1638,7 +1664,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 				TownyMessaging.sendErrorMsg("SQL: A plot group was not registered properly on load!");
 				return true;
 			}
-			uuid = group.getID().toString();
+			uuid = group.getUUID().toString();
 			
 			line = rs.getString("groupName");
 			if (line != null)
@@ -1673,7 +1699,6 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		return true;
 	}
 
-	
 	private boolean loadJail(ResultSet rs) {
 		String line;
 		String[] tokens;
@@ -1906,7 +1931,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 		TownyMessaging.sendDebugMsg("Saving group " + group.getName());
 		try {
 			HashMap<String, Object> pltgrp_hm = new HashMap<>();
-			pltgrp_hm.put("groupID", group.getID());
+			pltgrp_hm.put("groupID", group.getUUID());
 			pltgrp_hm.put("groupName", group.getName());
 			pltgrp_hm.put("groupPrice", group.getPrice());
 			pltgrp_hm.put("town", group.getTown().toString());
@@ -2101,7 +2126,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 			tb_hm.put("changed", townBlock.isChanged());
 			tb_hm.put("claimedAt", townBlock.getClaimedAt());
 			if (townBlock.hasPlotObjectGroup())
-				tb_hm.put("groupID", townBlock.getPlotObjectGroup().getID().toString());
+				tb_hm.put("groupID", townBlock.getPlotObjectGroup().getUUID().toString());
 			else
 				tb_hm.put("groupID", "");
 			if (townBlock.hasMeta())
@@ -2200,11 +2225,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	public void deleteNation(Nation nation) {
 		deleteRowOfColumnAndName(TownyDBTableType.NATION, nation.getName());
 	}
-//
-//	public void deleteAlliance(Alliance alliance) {
-//		deleteRowOfColumnAndUUID(TownyDBTableType.ALLIANCE, alliance.getUUID());
-//	}
-	
+
 	@Override
 	public void deleteWorld(TownyWorld world) {
 		deleteRowOfColumnAndName(TownyDBTableType.WORLD, world.getName());
@@ -2221,7 +2242,7 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 
 	@Override
 	public void deletePlotGroup(PlotGroup group) {
-		deleteRowOfColumnAndUUID(TownyDBTableType.PLOTGROUP, group.getID());
+		deleteRowOfColumnAndUUID(TownyDBTableType.PLOTGROUP, group.getUUID());
 	}
 	
 	@Override
@@ -2262,4 +2283,6 @@ public final class TownySQLSource extends TownyDatabaseHandler {
 	public HikariDataSource getHikariDataSource() {
 		return hikariDataSource;
 	}
+
+
 }

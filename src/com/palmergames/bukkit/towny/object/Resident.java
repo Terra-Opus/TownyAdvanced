@@ -6,6 +6,8 @@ import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
 import com.palmergames.bukkit.towny.command.BaseCommand;
 import com.palmergames.bukkit.towny.confirmations.Confirmation;
+import com.palmergames.bukkit.towny.db.TownyFlatFileSource.TownyDBFileType;
+import com.palmergames.bukkit.towny.db.TownySQLSource.TownyDBTableType;
 import com.palmergames.bukkit.towny.event.TownAddResidentEvent;
 import com.palmergames.bukkit.towny.event.TownRemoveResidentEvent;
 import com.palmergames.bukkit.towny.event.town.TownPreRemoveResidentEvent;
@@ -834,6 +836,14 @@ public class Resident extends TownyObject implements InviteReceiver, EconomyHand
 	@Override
 	public void save() {
 		TownyUniverse.getInstance().getDataSource().saveResident(this);
+	}
+	
+	@Override
+	public String getSaveLocation() {
+		if (TownyUniverse.getInstance().getDataSource().isFlatFile())
+			return TownyDBFileType.RESIDENT.getSaveLocation(getUUID().toString());
+		else 
+			return TownyDBTableType.RESIDENT.getSaveLocation(getUUID().toString());
 	}
 
 	public long getJoinedTownAt() {

@@ -14,6 +14,7 @@ import com.palmergames.bukkit.towny.utils.BorderUtil;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -37,17 +38,19 @@ public class TownyWorldListener implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onWorldLoad(WorldLoadEvent event) {
 
-		newWorld(event.getWorld().getName());
+		newWorld(event.getWorld());
 	}
 
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onWorldInit(WorldInitEvent event) {
 
-		newWorld(event.getWorld().getName());
+		newWorld(event.getWorld());
 
 	}
 
-	private void newWorld(String worldName) {
+	private void newWorld(World world) {
+		
+		String worldName = world.getName();
 		
 		// Don't create a new world for temporary DungeonsXL instanced worlds.
 		boolean dungeonWorld = Bukkit.getServer().getPluginManager().getPlugin("DungeonsXL") != null && worldName.startsWith("DXL_");
@@ -55,17 +58,17 @@ public class TownyWorldListener implements Listener {
 		TownyUniverse townyUniverse = TownyUniverse.getInstance();
 
 		try {
-			TownyUniverse.getInstance().getDataSource().newWorld(worldName);
-			TownyWorld world = TownyAPI.getInstance().getTownyWorld(worldName);
-			if (world == null)
+			TownyUniverse.getInstance().getDataSource().newWorld(world);
+			TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(world.getUID());
+			if (townyWorld == null)
 				TownyMessaging.sendErrorMsg("Could not create data for " + worldName);
 			else {
 				if (dungeonWorld)
-					world.setUsingTowny(false);
+					townyWorld.setUsingTowny(false);
 				else 
-					if (!townyUniverse.getDataSource().loadWorld(world)) {
+					if (!townyUniverse.getDataSource().loadWorld(world.getUID())) {
 						// First time world has been noticed
-						world.save();
+						townyWorld.save();
 					}
 			}
 		} catch (AlreadyRegisteredException e) {

@@ -2,6 +2,8 @@ package com.palmergames.bukkit.towny.object;
 
 import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
+import com.palmergames.bukkit.towny.db.TownyFlatFileSource.TownyDBFileType;
+import com.palmergames.bukkit.towny.db.TownySQLSource.TownyDBTableType;
 import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.TownyException;
 import com.palmergames.bukkit.towny.object.TownyPermission.ActionType;
@@ -9,8 +11,11 @@ import com.palmergames.bukkit.towny.object.metadata.CustomDataField;
 import com.palmergames.util.MathUtil;
 
 import com.palmergames.util.StringMgmt;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
@@ -22,9 +27,11 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class TownyWorld extends TownyObject {
-
+	private UUID uuid;
+	
 	private HashMap<String, Town> towns = new HashMap<>();
 
 	private boolean isUsingPlotManagementDelete = TownySettings.isUsingPlotManagementDelete();
@@ -73,7 +80,19 @@ public class TownyWorld extends TownyObject {
 	public TownyWorld(String name) {
 		super(name);
 	}
+	
+	public UUID getUUID() {
+		return uuid;
+	}
+	
+	public void setUUID(UUID uuid) {
+		this.uuid = uuid;
+	}
 
+	public World getBukkitWorld() {
+		return Bukkit.getWorld(uuid);
+	}
+	
 	public HashMap<String, Town> getTowns() {
 
 		return towns;
@@ -908,5 +927,13 @@ public class TownyWorld extends TownyObject {
 	@Override
 	public void save() {
 		TownyUniverse.getInstance().getDataSource().saveWorld(this);
+	}
+	
+	@Override
+	public String getSaveLocation() {
+		if (TownyUniverse.getInstance().getDataSource().isFlatFile())
+			return TownyDBFileType.WORLD.getSaveLocation(getUUID().toString());
+		else 
+			return TownyDBTableType.WORLD.getSaveLocation(getUUID().toString());
 	}
 }
