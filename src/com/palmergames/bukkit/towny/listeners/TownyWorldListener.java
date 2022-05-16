@@ -49,9 +49,24 @@ public class TownyWorldListener implements Listener {
 
 	private void newWorld(World world) {
 		// Check if this world was already loaded by Towny and present in the DB.
-		if (TownyUniverse.getInstance().getWorldIDMap().containsKey(world.getUID()))
-			return;
+		if (TownyUniverse.getInstance().getWorldIDMap().containsKey(world.getUID())) {
+			if (TownyUniverse.getInstance().getWorld(world.getUID()).getName().equalsIgnoreCase(world.getName()))
+				// This is a world we already know about, the world and UUID are already a match.
+				return;
 
+			if (!TownyUniverse.getInstance().getWorldIDMap().get(world.getUID()).getName().equalsIgnoreCase(world.getName())) {
+				// The world's UUID is already a TownyWorld uuid map, but the name is outdated.
+				TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(world.getUID());
+				TownyUniverse.getInstance().getWorldMap().remove(townyWorld.getName());
+				TownyUniverse.getInstance().getWorldMap().put(world.getName(), townyWorld);
+				townyWorld.setName(world.getName());
+				townyWorld.save();
+				return;
+			}
+		}
+	
+
+		// This is a world we've never seen before, make a new TownyWorld.
 		TownyUniverse.getInstance().getDataSource().newWorld(world);
 		TownyWorld townyWorld = TownyAPI.getInstance().getTownyWorld(world.getUID());
 		if (townyWorld == null)
