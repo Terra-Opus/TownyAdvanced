@@ -1,5 +1,5 @@
 name: Towny
-version: 0.152
+version: 0.154
 language: english
 author: ElgarL
 website: 'http://townyadvanced.github.io/'
@@ -1749,3 +1749,7 @@ msg_err_town_not_allowed_purchased_blocks: 'The town %s is unable to purchase to
 msg_purchased_blocks_unset: 'The town %s has had their purchased townblocks removed.'
 #Message shown when /ta town name giveboughtblocks # is used.
 msg_purchased_blocks_changed: 'The town %s has been given %s bought townblocks, they currently have %s bought townblocks.'
+
+#Added in 0.154
+#Shown when a player tries to set a plot type but their town has reached the limit, first number is the limit and the string is the type name.
+msg_town_plot_type_limit_reached: 'Your town has reached the limit of %d %s plots.'
