@@ -979,7 +979,7 @@ public class NationCommand extends BaseCommand implements CommandExecutor {
 				filteredName = null;
 			}
 
-			if ((filteredName == null) || TownyUniverse.getInstance().hasNation(filteredName))
+			if (filteredName == null || TownyUniverse.getInstance().hasNation(filteredName) || (!TownySettings.areNumbersAllowedInNationNames() && NameValidation.containsNumbers(filteredName)))
 				throw new TownyException(Translatable.of("msg_err_invalid_name", filteredName));
 
 			PreNewNationEvent preEvent = new PreNewNationEvent(capitalTown, filteredName);
@@ -2154,10 +2154,9 @@ public class NationCommand extends BaseCommand implements CommandExecutor {
 			TownyMessaging.sendErrorMsg(sender, "Eg: /nation set name Plutoria");				
 		else {
 			
-			String name = split[1];
+			String name = String.join("_", StringMgmt.remFirstArg(split));
 			
-			if (NameValidation.isBlacklistName(name)
-				|| TownyUniverse.getInstance().hasNation(name))
+			if (NameValidation.isBlacklistName(name) || TownyUniverse.getInstance().hasNation(name) || (!TownySettings.areNumbersAllowedInNationNames() && NameValidation.containsNumbers(name)))
 				throw new TownyException(Translatable.of("msg_invalid_name"));
 			
 			if (TownySettings.getTownAutomaticCapitalisationEnabled())
@@ -2560,6 +2559,11 @@ public class NationCommand extends BaseCommand implements CommandExecutor {
 	}
 
 	private static void nationTransaction(Player player, String[] args, boolean withdraw) {
+		if (TownySettings.isEconomyAsync() && Bukkit.isPrimaryThread()) {
+			Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> nationTransaction(player, args, withdraw));
+			return;
+		}
+		
 		try {
 			Resident resident = getResidentOrThrow(player.getUniqueId());
 			Nation nation = getNationFromResidentOrThrow(resident);
@@ -2568,11 +2572,10 @@ public class NationCommand extends BaseCommand implements CommandExecutor {
 				throw new TownyException(Translatable.of("msg_must_specify_amnt", "/nation" + (withdraw ? " withdraw" : " deposit")));
 
 			int amount;
-			try {
-				amount = Integer.parseInt(args[1].trim());
-			} catch (NumberFormatException ex) {
-				throw new TownyException(Translatable.of("msg_error_must_be_int"));
-			}
+			if ("all".equalsIgnoreCase(args[1].trim()))
+				amount = (int) Math.floor(withdraw ? nation.getAccount().getHoldingBalance() : resident.getAccount().getHoldingBalance());
+			else 
+				amount = MathUtil.getIntOrThrow(args[1].trim());
 			
 			if (args.length == 2) {
 				if (withdraw)

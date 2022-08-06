@@ -1059,10 +1059,16 @@ public class PlotCommand extends BaseCommand implements CommandExecutor {
 		townBlock.setPlotPrice(Math.min(TownySettings.getMaxPlotPrice(), forSale));
 
 		if (forSale != -1) {
-			TownyMessaging.sendPrefixedTownMessage(townBlock.getTownOrNull(), Translatable.of("MSG_PLOT_FOR_SALE", resident.getName(), worldCoord.toString()));
+			Translatable message = TownyEconomyHandler.isActive()
+				? Translatable.of("msg_plot_for_sale_amount", resident.getName(), worldCoord.toString(), TownyEconomyHandler.getFormattedBalance(townBlock.getPlotPrice()))
+				: Translatable.of("msg_plot_for_sale", resident.getName(), worldCoord.toString());
+			
+			TownyMessaging.sendPrefixedTownMessage(townBlock.getTownOrNull(), message);
+			
 			if (!resident.hasTown() || (resident.hasTown() && townBlock.getTownOrNull() != resident.getTownOrNull()))
-				TownyMessaging.sendMsg(resident, Translatable.of("MSG_PLOT_FOR_SALE", resident.getName(), worldCoord.toString()));
-			Bukkit.getPluginManager().callEvent(new PlotSetForSaleEvent(resident, forSale, townBlock));
+				TownyMessaging.sendMsg(resident, message);
+			
+			Bukkit.getPluginManager().callEvent(new PlotSetForSaleEvent(resident, townBlock.getPlotPrice(), townBlock));
 		} else {
 			TownyMessaging.sendMsg(resident, Translatable.of("msg_plot_set_to_nfs"));
 			Bukkit.getPluginManager().callEvent(new PlotNotForSaleEvent(resident, townBlock));
@@ -1581,13 +1587,16 @@ public class PlotCommand extends BaseCommand implements CommandExecutor {
 			}
 			
 			double price = MoneyUtil.getMoneyAboveZeroOrThrow(split[1]);
-			group.setPrice(price);
+			group.setPrice(Math.min(price, TownySettings.getMaxPlotPrice()));
 			
 			// Save
 			group.save();
 
-			TownyMessaging.sendPrefixedTownMessage(town, Translatable.of("msg_player_put_group_up_for_sale", player.getName(), group.getName(), TownyEconomyHandler.getFormattedBalance(group.getPrice())));
+			Translatable message = Translatable.of("msg_player_put_group_up_for_sale", player.getName(), group.getName(), TownyEconomyHandler.getFormattedBalance(group.getPrice()));
+			TownyMessaging.sendPrefixedTownMessage(town, message);
 			
+			if (!resident.hasTown() || resident.getTownOrNull() != town)
+				TownyMessaging.sendMsg(player, message);
 		} else if (split[0].equalsIgnoreCase("notforsale") || split[0].equalsIgnoreCase("nfs")) {
 			if (!permSource.testPermission(player, PermissionNodes.TOWNY_COMMAND_PLOT_GROUP_NOTFORSALE.getNode()))
 				throw new TownyException(Translatable.of("msg_err_command_disable"));
@@ -1606,6 +1615,9 @@ public class PlotCommand extends BaseCommand implements CommandExecutor {
 			group.save();
 
 			TownyMessaging.sendPrefixedTownMessage(town, Translatable.of("msg_player_made_group_not_for_sale", player.getName(), group.getName()));
+			
+			if (!resident.hasTown() || resident.getTownOrNull() != town)
+				TownyMessaging.sendMsg(player, Translatable.of("msg_player_made_group_not_for_sale", player.getName(), group.getName()));
 		} else if (split[0].equalsIgnoreCase("toggle")) {
 			if (!permSource.testPermission(player, PermissionNodes.TOWNY_COMMAND_PLOT_GROUP_TOGGLE.getNode()))
 				throw new TownyException(Translatable.of("msg_err_command_disable"));
@@ -1758,13 +1770,17 @@ public class PlotCommand extends BaseCommand implements CommandExecutor {
 				// Handle payment via a confirmation to avoid suprise costs.
 				if (cost > 0 && TownyEconomyHandler.isActive()) {
 					Confirmation.runOnAccept(() -> {
+						if (townBlock.getPlotObjectGroup() == null)
+							return;
+						
+						final double finalCost = type.getCost() * townBlock.getPlotObjectGroup().getTownBlocks().size();
 				
-						if (!resident.getAccount().withdraw(cost, String.format("Plot (" + amount + ") set to %s", type))) {
-							TownyMessaging.sendErrorMsg(player, Translatable.of("msg_err_cannot_afford_plot_set_type_cost", type, TownyEconomyHandler.getFormattedBalance(cost)));
+						if (!resident.getAccount().withdraw(finalCost, String.format("Plot group (" + townBlock.getPlotObjectGroup().getTownBlocks().size() + ") set to %s", type))) {
+							TownyMessaging.sendErrorMsg(player, Translatable.of("msg_err_cannot_afford_plot_set_type_cost", type, TownyEconomyHandler.getFormattedBalance(finalCost)));
 							return;
 						}					
 
-						TownyMessaging.sendMsg(resident, Translatable.of("msg_plot_set_cost", TownyEconomyHandler.getFormattedBalance(cost), type));
+						TownyMessaging.sendMsg(resident, Translatable.of("msg_plot_set_cost", TownyEconomyHandler.getFormattedBalance(finalCost), type));
 
 						for (TownBlock tb : townBlock.getPlotObjectGroup().getTownBlocks()) {
 							try {

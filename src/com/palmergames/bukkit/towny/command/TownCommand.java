@@ -2388,10 +2388,9 @@ public class TownCommand extends BaseCommand implements CommandExecutor {
 						return;
 					}
 
-					String name = split[1];
+					String name = String.join("_", StringMgmt.remFirstArg(split));
 					
-					if (NameValidation.isBlacklistName(name) 
-						|| TownyUniverse.getInstance().hasTown(name))
+					if (NameValidation.isBlacklistName(name) || TownyUniverse.getInstance().hasTown(name) || (!TownySettings.areNumbersAllowedInTownNames() && NameValidation.containsNumbers(name)))
 						throw new TownyException(Translatable.of("msg_invalid_name"));
 
         			if (TownySettings.getTownAutomaticCapitalisationEnabled())
@@ -2795,7 +2794,7 @@ public class TownCommand extends BaseCommand implements CommandExecutor {
 				filteredName = null;
 			}
 
-			if ((filteredName == null) || TownyUniverse.getInstance().hasTown(filteredName))
+			if (filteredName == null || TownyUniverse.getInstance().hasTown(filteredName) || (!TownySettings.areNumbersAllowedInTownNames() && NameValidation.containsNumbers(filteredName)))
 				throw new TownyException(Translatable.of("msg_err_invalid_name", name));
 			
 			name = filteredName;
@@ -4140,13 +4139,22 @@ public class TownCommand extends BaseCommand implements CommandExecutor {
 	}
 	
 	private static void townTransaction(Player player, String[] args, boolean withdraw) {
+		if (TownySettings.isEconomyAsync() && Bukkit.isPrimaryThread()) {
+			Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> townTransaction(player, args, withdraw));
+			return;
+		}
+		
 		try {
 			Resident resident = TownyUniverse.getInstance().getResident(player.getUniqueId());
 			if (resident == null || !resident.hasTown())
 				throw new TownyException(Translatable.of("msg_err_dont_belong_town"));
 			
 			if (args.length == 2) {
-				int amount = MathUtil.getIntOrThrow(args[1].trim());
+				int amount;
+				if ("all".equalsIgnoreCase(args[1].trim()))
+					amount = (int) Math.floor(withdraw ? resident.getTown().getAccount().getHoldingBalance() : resident.getAccount().getHoldingBalance());
+				else
+					amount = MathUtil.getIntOrThrow(args[1].trim());
 
 				if (withdraw)
 					MoneyUtil.townWithdraw(player, resident, resident.getTown(), amount);

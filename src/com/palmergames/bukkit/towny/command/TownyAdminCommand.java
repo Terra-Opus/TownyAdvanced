@@ -152,7 +152,7 @@ public class TownyAdminCommand extends BaseCommand implements CommandExecutor {
 		"forcemerge"
 	);
 	private static final List<String> adminTownToggleTabCompletes = Stream.concat(TownCommand.townToggleTabCompletes.stream(),
-			Arrays.asList("forcepvp", "unlimitedclaims").stream()).collect(Collectors.toList()); 
+			Arrays.asList("forcepvp", "unlimitedclaims", "upkeep").stream()).collect(Collectors.toList()); 
 
 	private static final List<String> adminNationTabCompletes = Arrays.asList(
 		"add",
@@ -1284,15 +1284,17 @@ public class TownyAdminCommand extends BaseCommand implements CommandExecutor {
 
 			} else if (split[1].equalsIgnoreCase("rename")) {
 				
-				TownPreRenameEvent event = new TownPreRenameEvent(town, split[2]);
+				String name = String.join("_", StringMgmt.remArgs(split, 2));
+				
+				TownPreRenameEvent event = new TownPreRenameEvent(town, name);
 				Bukkit.getServer().getPluginManager().callEvent(event);
 				if (event.isCancelled()) {
 					TownyMessaging.sendErrorMsg(sender, Translatable.of("msg_err_rename_cancelled"));
 					return;
 				}
 
-				if (!NameValidation.isBlacklistName(split[2])) {
-					townyUniverse.getDataSource().renameTown(town, split[2]);
+				if (!NameValidation.isBlacklistName(name) && (TownySettings.areNumbersAllowedInTownNames() || !NameValidation.containsNumbers(name))) {
+					townyUniverse.getDataSource().renameTown(town, name);
 					TownyMessaging.sendPrefixedTownMessage(town, Translatable.of("msg_town_set_name", ((getSender() instanceof Player) ? player.getName() : "CONSOLE"), town.getName()));
 					TownyMessaging.sendMsg(getSender(), Translatable.of("msg_town_set_name", ((getSender() instanceof Player) ? player.getName() : "CONSOLE"), town.getName()));
 				} else {
@@ -1333,6 +1335,11 @@ public class TownyAdminCommand extends BaseCommand implements CommandExecutor {
 					town.setHasUnlimitedClaims(choice.orElse(!town.hasUnlimitedClaims()));
 					town.save();
 					TownyMessaging.sendMsg(sender, Translatable.of("msg_town_unlimitedclaims_setting_set_to", town.getName(), town.hasUnlimitedClaims()));
+				} else if (split[2].equalsIgnoreCase("upkeep")) {
+					
+					town.setHasUpkeep(choice.orElse(!town.hasUpkeep()));
+					town.save();
+					TownyMessaging.sendMsg(sender, Translatable.of("msg_town_upkeep_setting_set_to", town.getName(), town.hasUpkeep()));
 				} else
 					TownCommand.townToggle(sender, StringMgmt.remArgs(split, 2), true, town);
 				
@@ -1621,16 +1628,19 @@ public class TownyAdminCommand extends BaseCommand implements CommandExecutor {
 
 			} else if (split[1].equalsIgnoreCase("rename")) {
 
-				NationPreRenameEvent event = new NationPreRenameEvent(nation, split[2]);
+				String name = String.join("_", StringMgmt.remArgs(split, 2));
+
+				NationPreRenameEvent event = new NationPreRenameEvent(nation, name);
 				Bukkit.getServer().getPluginManager().callEvent(event);
 				if (event.isCancelled()) {
 					TownyMessaging.sendErrorMsg(sender, Translatable.of("msg_err_rename_cancelled"));
 					return;
 				}
 				
-				if (!NameValidation.isBlacklistName(split[2])) {
-					townyUniverse.getDataSource().renameNation(nation, split[2]);
+				if (!NameValidation.isBlacklistName(name) && (TownySettings.areNumbersAllowedInNationNames() || !NameValidation.containsNumbers(name))) {
+					townyUniverse.getDataSource().renameNation(nation, name);
 					TownyMessaging.sendPrefixedNationMessage(nation, Translatable.of("msg_nation_set_name", ((getSender() instanceof Player) ? player.getName() : "CONSOLE"), nation.getName()));
+					TownyMessaging.sendMsg(getSender(), Translatable.of("msg_nation_set_name", ((getSender() instanceof Player) ? player.getName() : "CONSOLE"), nation.getName()));
 				} else
 					TownyMessaging.sendErrorMsg(getSender(), Translatable.of("msg_invalid_name"));
 
